@@ -1,0 +1,23 @@
+{
+  "manifest_version": 3,
+  "name": "Ask LLM (M2 demo)",
+  "version": "0.2.0",
+  "description": "Milestone 2: MV3 minimal extension — content script + service worker + popup + storage.",
+  "action": {
+    "default_popup": "popup.html",
+    "default_title": "Ask LLM (M2)"
+  },
+  "permissions": ["storage"],
+  "host_permissions": ["http://*/*", "https://*/*"],
+  "background": {
+    "service_worker": "background.js"
+  },
+  "content_scripts": [
+    {
+      "matches": ["http://*/*", "https://*/*"],
+      "js": ["content.js"],
+      "css": ["content.css"],
+      "run_at": "document_idle"
+    }
+  ]
+}

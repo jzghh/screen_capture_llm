@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Ask LLM (M2)</title>
+    <link rel="stylesheet" href="popup.css" />
+  </head>
+  <body>
+    <main class="popup">
+      <h1 class="popup__title">Ask LLM</h1>
+      <p class="popup__meta">M2 · Manifest V3</p>
+      <label class="popup__row">
+        <input id="toggle-enabled" type="checkbox" checked />
+        <span>Enable selection bubble on pages</span>
+      </label>
+      <button id="btn-ping" type="button" class="popup__button">Ping service worker</button>
+      <p id="ping-result" class="popup__hint" hidden></p>
+      <p class="popup__hint">Turn off, then select text — bubble should not appear.</p>
+    </main>
+    <script src="popup.js"></script>
+  </body>
+</html>
