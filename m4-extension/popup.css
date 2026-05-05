@@ -1,0 +1,126 @@
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  min-width: 280px;
+  font-family: system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial,
+    "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+  font-size: 14px;
+  color: #111827;
+  background: #f9fafb;
+}
+
+.popup {
+  padding: 12px 14px;
+}
+
+.popup__title {
+  margin: 0 0 4px;
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.popup__meta {
+  margin: 0 0 10px;
+  font-size: 12px;
+  color: #6b7280;
+}
+
+.popup__field-label {
+  display: block;
+  margin: 8px 0 4px;
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: #6b7280;
+}
+
+.popup__input {
+  width: 100%;
+  padding: 7px 8px;
+  border-radius: 6px;
+  border: 1px solid #d1d5db;
+  font: inherit;
+  background: #fff;
+}
+
+.popup__input:focus {
+  outline: none;
+  border-color: #2563eb;
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.2);
+}
+
+.popup__row {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  margin: 12px 0;
+  cursor: pointer;
+  line-height: 1.4;
+}
+
+.popup__row input {
+  margin-top: 2px;
+}
+
+.popup__button {
+  width: 100%;
+  padding: 8px 10px;
+  border: none;
+  border-radius: 6px;
+  background: #111827;
+  color: #fff;
+  font-weight: 600;
+  font-size: 13px;
+  cursor: pointer;
+  margin-top: 10px;
+}
+
+.popup__button:hover {
+  background: #0f172a;
+}
+
+.popup__button--secondary {
+  margin-top: 8px;
+  background: #374151;
+}
+
+.popup__button--secondary:hover {
+  background: #1f2937;
+}
+
+.popup__hint {
+  margin: 6px 0 0;
+  font-size: 11px;
+  color: #059669;
+  line-height: 1.4;
+}
+
+.popup__sub-hint {
+  margin: 4px 0 0;
+  font-size: 11px;
+  color: #6b7280;
+  line-height: 1.4;
+}
+
+.popup__input:disabled {
+  background: #f3f4f6;
+  color: #9ca3af;
+  cursor: not-allowed;
+}
+
+.popup__warning {
+  margin: 10px 0 0;
+  font-size: 10px;
+  line-height: 1.45;
+  color: #b45309;
+  background: #fffbeb;
+  border: 1px solid #fcd34d;
+  border-radius: 6px;
+  padding: 8px;
+}

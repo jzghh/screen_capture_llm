@@ -1,0 +1,35 @@
+{
+  "manifest_version": 3,
+  "name": "Ask LLM (M4 demo)",
+  "version": "0.4.0",
+  "description": "Milestone 4: SSE streaming, Markdown rendering, multi-turn conversation.",
+  "action": {
+    "default_popup": "popup.html",
+    "default_title": "Ask LLM (M4)"
+  },
+  "permissions": ["storage"],
+  "host_permissions": ["http://*/*", "https://*/*"],
+  "background": {
+    "service_worker": "background.js",
+    "type": "module"
+  },
+  "content_scripts": [
+    {
+      "matches": ["http://*/*", "https://*/*"],
+      "js": [
+        "vendor/marked.min.js",
+        "vendor/dompurify.min.js",
+        "vendor/highlight.min.js",
+        "content.js"
+      ],
+      "css": ["vendor/highlight-github.min.css", "content.css"],
+      "run_at": "document_idle"
+    }
+  ],
+  "web_accessible_resources": [
+    {
+      "resources": ["providers/providers.json"],
+      "matches": ["<all_urls>"]
+    }
+  ]
+}

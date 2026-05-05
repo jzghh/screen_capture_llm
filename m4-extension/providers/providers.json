@@ -1,0 +1,45 @@
+{
+  "default": "anthropic",
+  "providers": [
+    {
+      "id": "anthropic",
+      "label": "Anthropic Claude",
+      "kind": "anthropic",
+      "defaultBaseUrl": "https://api.anthropic.com",
+      "defaultModel": "claude-3-5-haiku-20241022",
+      "authHint": "x-api-key (sk-ant-...)"
+    },
+    {
+      "id": "openai",
+      "label": "OpenAI",
+      "kind": "openai-compat",
+      "defaultBaseUrl": "https://api.openai.com/v1",
+      "defaultModel": "gpt-4o-mini",
+      "authHint": "Bearer sk-..."
+    },
+    {
+      "id": "deepseek",
+      "label": "DeepSeek",
+      "kind": "openai-compat",
+      "defaultBaseUrl": "https://api.deepseek.com/v1",
+      "defaultModel": "deepseek-chat",
+      "authHint": "Bearer sk-..."
+    },
+    {
+      "id": "groq",
+      "label": "Groq",
+      "kind": "openai-compat",
+      "defaultBaseUrl": "https://api.groq.com/openai/v1",
+      "defaultModel": "llama-3.1-70b-versatile",
+      "authHint": "Bearer gsk_..."
+    },
+    {
+      "id": "ollama-local",
+      "label": "Ollama (local)",
+      "kind": "openai-compat",
+      "defaultBaseUrl": "http://localhost:11434/v1",
+      "defaultModel": "llama3.1",
+      "noAuth": true
+    }
+  ]
+}
