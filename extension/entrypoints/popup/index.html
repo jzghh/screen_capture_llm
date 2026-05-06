@@ -1,0 +1,46 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Ask LLM</title>
+    <link rel="stylesheet" href="./style.css" />
+  </head>
+  <body>
+    <main class="popup">
+      <h1 class="popup__title">Ask LLM</h1>
+      <p class="popup__meta">M5 · TypeScript + WXT</p>
+
+      <label class="popup__field-label" for="provider-select">Provider</label>
+      <select id="provider-select" class="popup__input"></select>
+
+      <label class="popup__field-label" for="api-key">API key</label>
+      <input id="api-key" class="popup__input" type="password" autocomplete="off" placeholder="" />
+      <p id="api-hint" class="popup__sub-hint" hidden></p>
+
+      <label class="popup__field-label" for="model-id">Model ID</label>
+      <input id="model-id" class="popup__input" type="text" spellcheck="false" placeholder="" />
+
+      <label class="popup__field-label" for="base-url">Base URL (optional)</label>
+      <input id="base-url" class="popup__input" type="text" spellcheck="false" placeholder="" />
+
+      <button id="btn-save" type="button" class="popup__button">Save provider settings</button>
+      <p id="save-status" class="popup__hint" hidden></p>
+
+      <label class="popup__row">
+        <input id="toggle-enabled" type="checkbox" checked />
+        <span>Enable selection bubble on pages</span>
+      </label>
+
+      <button id="btn-ping" type="button" class="popup__button popup__button--secondary">
+        Ping service worker
+      </button>
+      <p id="ping-result" class="popup__hint" hidden></p>
+
+      <p class="popup__warning">
+        Keys live in chrome.storage.local on this profile only. Shipping a store build with keys in
+        the extension is unsafe — M6 moves this to a backend.
+      </p>
+    </main>
+    <script type="module" src="./main.ts"></script>
+  </body>
+</html>

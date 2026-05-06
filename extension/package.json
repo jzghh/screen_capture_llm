@@ -1,0 +1,32 @@
+{
+  "name": "ask-llm-extension",
+  "version": "0.5.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "wxt",
+    "build": "wxt build",
+    "zip": "wxt zip",
+    "lint": "eslint .",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "check": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "@anthropic-ai/sdk": "^0.94.0",
+    "@eslint/js": "^10.0.1",
+    "@types/dompurify": "^3.0.5",
+    "chrome-types": "^0.1.425",
+    "eslint": "^10.3.0",
+    "eslint-config-prettier": "^10.1.8",
+    "prettier": "^3.8.3",
+    "typescript": "^6.0.3",
+    "typescript-eslint": "^8.59.2",
+    "wxt": "^0.20.25"
+  },
+  "dependencies": {
+    "dompurify": "^3.4.2",
+    "highlight.js": "^11.11.1",
+    "marked": "^18.0.3"
+  }
+}
