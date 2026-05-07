@@ -22,6 +22,7 @@ function buildHeaders(apiKey: string): Record<string, string> {
     "content-type": "application/json",
     "x-api-key": apiKey,
     "anthropic-version": ANTHROPIC_VERSION,
+    "anthropic-dangerous-direct-browser-access": "true",
   };
 }
 

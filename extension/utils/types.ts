@@ -69,7 +69,12 @@ export const STORAGE_KEYS = {
   baseUrls: "askLlmBaseUrls",
   legacyApiKey: "askLlmApiKey",
   legacyModel: "askLlmModel",
+  mode: "askLlmMode",
+  backendUrl: "askLlmBackendUrl",
+  backendToken: "askLlmBackendToken",
 } as const;
+
+export type ConnectionMode = "self-hosted" | "backend";
 
 export const PORT_NAME = "ask-llm-stream";
 export const MAX_SELECTION_CHARS = 200_000;

@@ -1,0 +1,11 @@
+name = "ask-llm-backend"
+main = "src/index.ts"
+compatibility_date = "2024-12-01"
+
+[[kv_namespaces]]
+binding = "KV"
+id = "PLACEHOLDER_KV_ID"
+preview_id = "PLACEHOLDER_PREVIEW_KV_ID"
+
+[vars]
+ALLOWED_ORIGIN = "chrome-extension://YOUR_EXTENSION_ID"

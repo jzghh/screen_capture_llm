@@ -1,8 +1,9 @@
 import { listProviders, getProvider, streamProvider } from "@/providers";
+import { streamViaBackend } from "@/providers/adapters/backend";
 import { buildSystemPrompt } from "@/utils/prompts";
 import { loadProviderParams } from "@/utils/storage";
 import { STORAGE_KEYS, PORT_NAME } from "@/utils/types";
-import type { StreamStartMessage, StreamPortMessage } from "@/utils/types";
+import type { ConnectionMode, StreamStartMessage, StreamPortMessage } from "@/utils/types";
 
 export default defineBackground(() => {
   // ─── Migrations ───────────────────────────────────────────────────────────
@@ -97,42 +98,77 @@ export default defineBackground(() => {
         return;
       }
 
-      const params = await loadProviderParams();
-
-      if (!params.providerId) {
-        send({ type: "ERROR", error: "No provider selected. Open the popup." });
-        return;
-      }
-
-      const provider = await getProvider(params.providerId);
-      if (!provider) {
-        send({ type: "ERROR", error: `Unknown provider: ${params.providerId}` });
-        return;
-      }
-      if (!provider.noAuth && !params.apiKey) {
-        send({
-          type: "ERROR",
-          error: `No API key for ${provider.label}. Open the popup and save one.`,
-        });
-        return;
-      }
+      const modeData = await chrome.storage.local.get([
+        STORAGE_KEYS.mode,
+        STORAGE_KEYS.backendUrl,
+        STORAGE_KEYS.backendToken,
+      ]);
+      const mode: ConnectionMode =
+        (modeData[STORAGE_KEYS.mode] as ConnectionMode) || "self-hosted";
 
       controller = new AbortController();
+      const safeMessages = Array.isArray(messages) ? messages : [];
+      const system = buildSystemPrompt();
 
       try {
-        const gen = await streamProvider(params.providerId, {
-          apiKey: params.apiKey,
-          baseUrl: params.baseUrl,
-          model: params.model,
-          system: buildSystemPrompt(),
-          messages: Array.isArray(messages) ? messages : [],
-          signal: controller.signal,
-        });
+        let gen: AsyncGenerator<string>;
+
+        if (mode === "backend") {
+          const backendUrl = String(modeData[STORAGE_KEYS.backendUrl] ?? "").trim();
+          const backendToken = String(modeData[STORAGE_KEYS.backendToken] ?? "").trim();
+          if (!backendUrl) {
+            send({ type: "ERROR", error: "No backend URL configured. Open the popup." });
+            return;
+          }
+          if (!backendToken) {
+            send({ type: "ERROR", error: "No backend token configured. Open the popup." });
+            return;
+          }
+
+          const params = await loadProviderParams();
+          gen = streamViaBackend({
+            backendUrl,
+            backendToken,
+            providerId: params.providerId || "anthropic",
+            model: params.model,
+            system,
+            messages: safeMessages,
+            signal: controller.signal,
+          });
+        } else {
+          const params = await loadProviderParams();
+
+          if (!params.providerId) {
+            send({ type: "ERROR", error: "No provider selected. Open the popup." });
+            return;
+          }
+          const provider = await getProvider(params.providerId);
+          if (!provider) {
+            send({ type: "ERROR", error: `Unknown provider: ${params.providerId}` });
+            return;
+          }
+          if (!provider.noAuth && !params.apiKey) {
+            send({
+              type: "ERROR",
+              error: `No API key for ${provider.label}. Open the popup and save one.`,
+            });
+            return;
+          }
+
+          gen = await streamProvider(params.providerId, {
+            apiKey: params.apiKey,
+            baseUrl: params.baseUrl,
+            model: params.model,
+            system,
+            messages: safeMessages,
+            signal: controller.signal,
+          });
+        }
 
         for await (const chunk of gen) {
           send({ type: "CHUNK", text: chunk });
         }
-        send({ type: "DONE", provider: params.providerId });
+        send({ type: "DONE", provider: "ok" });
       } catch (e) {
         if (e instanceof Error && e.name === "AbortError") return;
         const errMsg = e instanceof Error ? e.message : String(e);

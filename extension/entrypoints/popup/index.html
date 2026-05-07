@@ -8,22 +8,53 @@
   <body>
     <main class="popup">
       <h1 class="popup__title">Ask LLM</h1>
-      <p class="popup__meta">M5 · TypeScript + WXT</p>
+      <p class="popup__meta">M6 · Backend + Launch</p>
 
-      <label class="popup__field-label" for="provider-select">Provider</label>
-      <select id="provider-select" class="popup__input"></select>
+      <!-- Connection mode -->
+      <label class="popup__field-label" for="mode-select">Connection mode</label>
+      <select id="mode-select" class="popup__input">
+        <option value="self-hosted">Self-hosted (direct API calls)</option>
+        <option value="backend">Backend (server-side keys)</option>
+      </select>
 
-      <label class="popup__field-label" for="api-key">API key</label>
-      <input id="api-key" class="popup__input" type="password" autocomplete="off" placeholder="" />
-      <p id="api-hint" class="popup__sub-hint" hidden></p>
+      <!-- Backend mode settings -->
+      <div id="backend-settings" hidden>
+        <label class="popup__field-label" for="backend-url">Backend URL</label>
+        <input
+          id="backend-url"
+          class="popup__input"
+          type="text"
+          spellcheck="false"
+          placeholder="https://ask-llm-backend.your-name.workers.dev"
+        />
 
-      <label class="popup__field-label" for="model-id">Model ID</label>
-      <input id="model-id" class="popup__input" type="text" spellcheck="false" placeholder="" />
+        <label class="popup__field-label" for="backend-token">Auth token</label>
+        <input
+          id="backend-token"
+          class="popup__input"
+          type="password"
+          autocomplete="off"
+          placeholder="Your auth token"
+        />
+      </div>
 
-      <label class="popup__field-label" for="base-url">Base URL (optional)</label>
-      <input id="base-url" class="popup__input" type="text" spellcheck="false" placeholder="" />
+      <!-- Self-hosted mode settings -->
+      <div id="self-hosted-settings">
+        <label class="popup__field-label" for="provider-select">Provider</label>
+        <select id="provider-select" class="popup__input"></select>
 
-      <button id="btn-save" type="button" class="popup__button">Save provider settings</button>
+        <label class="popup__field-label" for="api-key">API key</label>
+        <input id="api-key" class="popup__input" type="password" autocomplete="off" placeholder="" />
+        <p id="api-hint" class="popup__sub-hint" hidden></p>
+
+        <label class="popup__field-label" for="model-id">Model ID</label>
+        <input id="model-id" class="popup__input" type="text" spellcheck="false" placeholder="" />
+
+        <label class="popup__field-label" for="base-url">Base URL (optional)</label>
+        <input id="base-url" class="popup__input" type="text" spellcheck="false" placeholder="" />
+      </div>
+
+      <button id="btn-save" type="button" class="popup__button">Save settings</button>
       <p id="save-status" class="popup__hint" hidden></p>
 
       <label class="popup__row">
@@ -36,9 +67,9 @@
       </button>
       <p id="ping-result" class="popup__hint" hidden></p>
 
-      <p class="popup__warning">
-        Keys live in chrome.storage.local on this profile only. Shipping a store build with keys in
-        the extension is unsafe — M6 moves this to a backend.
+      <p id="self-hosted-warning" class="popup__warning">
+        Self-hosted mode: keys live in chrome.storage.local on this device only.
+        Switch to Backend mode for server-managed keys.
       </p>
     </main>
     <script type="module" src="./main.ts"></script>

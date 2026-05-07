@@ -6,7 +6,7 @@
       "label": "Anthropic Claude",
       "kind": "anthropic",
       "defaultBaseUrl": "https://api.anthropic.com",
-      "defaultModel": "claude-3-5-haiku-20241022",
+      "defaultModel": "claude-sonnet-4-20250514",
       "authHint": "x-api-key (sk-ant-...)"
     },
     {

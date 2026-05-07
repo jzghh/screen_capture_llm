@@ -1,5 +1,5 @@
 import { STORAGE_KEYS } from "@/utils/types";
-import type { ProviderEntry } from "@/utils/types";
+import type { ConnectionMode, ProviderEntry } from "@/utils/types";
 
 interface Draft {
   apiKey: string;
@@ -8,6 +8,13 @@ interface Draft {
 }
 
 const $ = <T extends HTMLElement>(sel: string): T | null => document.querySelector<T>(sel);
+
+const modeSelectEl = $<HTMLSelectElement>("#mode-select");
+const backendSettingsEl = $<HTMLDivElement>("#backend-settings");
+const selfHostedSettingsEl = $<HTMLDivElement>("#self-hosted-settings");
+const backendUrlEl = $<HTMLInputElement>("#backend-url");
+const backendTokenEl = $<HTMLInputElement>("#backend-token");
+const selfHostedWarningEl = $<HTMLParagraphElement>("#self-hosted-warning");
 
 const providerSelectEl = $<HTMLSelectElement>("#provider-select");
 const apiKeyEl = $<HTMLInputElement>("#api-key");
@@ -23,6 +30,7 @@ const pingResult = $<HTMLParagraphElement>("#ping-result");
 let providers: ProviderEntry[] = [];
 const drafts: Record<string, Draft> = Object.create(null);
 let currentProviderId = "";
+let currentMode: ConnectionMode = "self-hosted";
 
 function isPlainObject(v: unknown): v is Record<string, unknown> {
   return v !== null && typeof v === "object" && !Array.isArray(v);
@@ -51,6 +59,13 @@ function setSaveStatus(text: string, ok = true): void {
   saveStatus.hidden = false;
   saveStatus.style.color = ok ? "#059669" : "#b91c1c";
   saveStatus.textContent = text;
+}
+
+function applyModeVisibility(): void {
+  const isBackend = currentMode === "backend";
+  if (backendSettingsEl) backendSettingsEl.hidden = !isBackend;
+  if (selfHostedSettingsEl) selfHostedSettingsEl.hidden = isBackend;
+  if (selfHostedWarningEl) selfHostedWarningEl.hidden = isBackend;
 }
 
 function fillFormForCurrentProvider(): void {
@@ -117,6 +132,9 @@ async function init(): Promise<void> {
     STORAGE_KEYS.keys,
     STORAGE_KEYS.models,
     STORAGE_KEYS.baseUrls,
+    STORAGE_KEYS.mode,
+    STORAGE_KEYS.backendUrl,
+    STORAGE_KEYS.backendToken,
   ]);
   const keys = isPlainObject(data[STORAGE_KEYS.keys]) ? data[STORAGE_KEYS.keys] : {};
   const models = isPlainObject(data[STORAGE_KEYS.models]) ? data[STORAGE_KEYS.models] : {};
@@ -134,9 +152,20 @@ async function init(): Promise<void> {
   if (providerSelectEl) providerSelectEl.value = currentProviderId;
   fillFormForCurrentProvider();
 
+  currentMode = (data[STORAGE_KEYS.mode] as ConnectionMode) || "self-hosted";
+  if (modeSelectEl) modeSelectEl.value = currentMode;
+  if (backendUrlEl) backendUrlEl.value = String(data[STORAGE_KEYS.backendUrl] ?? "");
+  if (backendTokenEl) backendTokenEl.value = String(data[STORAGE_KEYS.backendToken] ?? "");
+  applyModeVisibility();
+
   const enabled = data[STORAGE_KEYS.enabled] !== false;
   if (toggleEl) toggleEl.checked = enabled;
 }
+
+modeSelectEl?.addEventListener("change", () => {
+  currentMode = (modeSelectEl?.value as ConnectionMode) || "self-hosted";
+  applyModeVisibility();
+});
 
 providerSelectEl?.addEventListener("change", () => {
   captureFormIntoDraft();
@@ -147,34 +176,41 @@ providerSelectEl?.addEventListener("change", () => {
 saveBtn?.addEventListener("click", async () => {
   captureFormIntoDraft();
 
-  const data = await chrome.storage.local.get([
-    STORAGE_KEYS.keys,
-    STORAGE_KEYS.models,
-    STORAGE_KEYS.baseUrls,
-  ]);
-  const keys = isPlainObject(data[STORAGE_KEYS.keys])
-    ? { ...(data[STORAGE_KEYS.keys] as Record<string, string>) }
-    : ({} as Record<string, string>);
-  const models = isPlainObject(data[STORAGE_KEYS.models])
-    ? { ...(data[STORAGE_KEYS.models] as Record<string, string>) }
-    : ({} as Record<string, string>);
-  const baseUrls = isPlainObject(data[STORAGE_KEYS.baseUrls])
-    ? { ...(data[STORAGE_KEYS.baseUrls] as Record<string, string>) }
-    : ({} as Record<string, string>);
+  const saveData: Record<string, unknown> = {
+    [STORAGE_KEYS.mode]: currentMode,
+    [STORAGE_KEYS.provider]: currentProviderId,
+    [STORAGE_KEYS.backendUrl]: backendUrlEl?.value.trim() ?? "",
+    [STORAGE_KEYS.backendToken]: backendTokenEl?.value ?? "",
+  };
 
-  for (const [id, draft] of Object.entries(drafts)) {
-    keys[id] = draft.apiKey ?? "";
-    models[id] = draft.model ?? "";
-    baseUrls[id] = draft.baseUrl ?? "";
+  if (currentMode === "self-hosted") {
+    const data = await chrome.storage.local.get([
+      STORAGE_KEYS.keys,
+      STORAGE_KEYS.models,
+      STORAGE_KEYS.baseUrls,
+    ]);
+    const keys = isPlainObject(data[STORAGE_KEYS.keys])
+      ? { ...(data[STORAGE_KEYS.keys] as Record<string, string>) }
+      : ({} as Record<string, string>);
+    const models = isPlainObject(data[STORAGE_KEYS.models])
+      ? { ...(data[STORAGE_KEYS.models] as Record<string, string>) }
+      : ({} as Record<string, string>);
+    const baseUrls = isPlainObject(data[STORAGE_KEYS.baseUrls])
+      ? { ...(data[STORAGE_KEYS.baseUrls] as Record<string, string>) }
+      : ({} as Record<string, string>);
+
+    for (const [id, draft] of Object.entries(drafts)) {
+      keys[id] = draft.apiKey ?? "";
+      models[id] = draft.model ?? "";
+      baseUrls[id] = draft.baseUrl ?? "";
+    }
+
+    saveData[STORAGE_KEYS.keys] = keys;
+    saveData[STORAGE_KEYS.models] = models;
+    saveData[STORAGE_KEYS.baseUrls] = baseUrls;
   }
 
-  await chrome.storage.local.set({
-    [STORAGE_KEYS.provider]: currentProviderId,
-    [STORAGE_KEYS.keys]: keys,
-    [STORAGE_KEYS.models]: models,
-    [STORAGE_KEYS.baseUrls]: baseUrls,
-  });
-
+  await chrome.storage.local.set(saveData);
   setSaveStatus("Saved.", true);
 });
 
