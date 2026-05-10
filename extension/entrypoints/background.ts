@@ -1,6 +1,6 @@
 import { listProviders, getProvider, streamProvider } from "@/providers";
 import { streamViaBackend } from "@/providers/adapters/backend";
-import { buildSystemPrompt } from "@/utils/prompts";
+import { buildSystemPrompt, buildUserContent } from "@/utils/prompts";
 import { loadProviderParams } from "@/utils/storage";
 import { STORAGE_KEYS, PORT_NAME } from "@/utils/types";
 import type { ConnectionMode, StreamStartMessage, StreamPortMessage } from "@/utils/types";
@@ -107,7 +107,8 @@ export default defineBackground(() => {
         (modeData[STORAGE_KEYS.mode] as ConnectionMode) || "self-hosted";
 
       controller = new AbortController();
-      const safeMessages = Array.isArray(messages) ? messages : [];
+      const safeMessages = Array.isArray(messages) ? [...messages] : [];
+      safeMessages.push({ role: "user", content: buildUserContent(selection, question) });
       const system = buildSystemPrompt();
 
       try {
