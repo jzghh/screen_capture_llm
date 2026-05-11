@@ -423,3 +423,299 @@
   flex-direction: column;
   gap: 0.25rem;
 }
+
+/* ── Answer wrapper (for copy button positioning) ────────────────── */
+
+.ask-llm-answer-wrap {
+  position: relative;
+}
+
+.ask-llm-history-turn__answer-wrap {
+  position: relative;
+}
+
+/* ── Copy button ─────────────────────────────────────────────────── */
+
+.ask-llm-copy-btn {
+  position: absolute;
+  top: 0.35rem;
+  right: 0.35rem;
+  padding: 0.2rem 0.5rem;
+  border: none;
+  border-radius: 0.3rem;
+  background: rgba(0, 0, 0, 0.06);
+  color: #6b7280;
+  font-size: 0.72rem;
+  font-weight: 600;
+  font-family: inherit;
+  cursor: pointer;
+  opacity: 0;
+  transition:
+    opacity 120ms ease,
+    background 120ms ease,
+    color 120ms ease;
+}
+
+.ask-llm-answer-wrap:hover .ask-llm-copy-btn,
+.ask-llm-history-turn__answer-wrap:hover .ask-llm-copy-btn {
+  opacity: 1;
+}
+
+.ask-llm-copy-btn:hover {
+  background: rgba(0, 0, 0, 0.1);
+  color: #374151;
+}
+
+.ask-llm-copy-btn--copied {
+  opacity: 1 !important;
+  background: #dcfce7;
+  color: #166534;
+}
+
+.ask-llm-copy-btn[hidden] {
+  display: none !important;
+}
+
+/* ── Quick-action presets ────────────────────────────────────────── */
+
+.ask-llm-presets {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+}
+
+.ask-llm-presets[hidden] {
+  display: none !important;
+}
+
+.ask-llm-preset-chip {
+  padding: 0.25rem 0.6rem;
+  border: 1px solid #e5e7eb;
+  border-radius: 999px;
+  background: #f9fafb;
+  color: #4b5563;
+  font-size: 0.75rem;
+  font-family: inherit;
+  cursor: pointer;
+  white-space: nowrap;
+  transition:
+    background 120ms ease,
+    border-color 120ms ease,
+    color 120ms ease;
+}
+
+.ask-llm-preset-chip:hover {
+  background: #eff6ff;
+  border-color: #bfdbfe;
+  color: #1d4ed8;
+}
+
+/* ── Retry button ────────────────────────────────────────────────── */
+
+.ask-llm-error-text {
+  color: #dc2626;
+}
+
+.ask-llm-retry-btn {
+  display: inline-block;
+  margin-left: 0.5rem;
+  padding: 0.2rem 0.6rem;
+  border: 1px solid #d1d5db;
+  border-radius: 0.35rem;
+  background: #ffffff;
+  color: #374151;
+  font-size: 0.8rem;
+  font-weight: 600;
+  font-family: inherit;
+  cursor: pointer;
+  transition:
+    background 120ms ease,
+    border-color 120ms ease;
+}
+
+.ask-llm-retry-btn:hover {
+  background: #f3f4f6;
+  border-color: #9ca3af;
+}
+
+/* ── Dark mode ───────────────────────────────────────────────────── */
+
+@media (prefers-color-scheme: dark) {
+  .ask-llm-panel {
+    background: #1f2937;
+    color: #f3f4f6;
+    border-color: #374151;
+    box-shadow: 0 24px 48px rgba(0, 0, 0, 0.4);
+  }
+
+  .ask-llm-panel__header {
+    background: #111827;
+    border-bottom-color: #374151;
+  }
+
+  .ask-llm-panel__close {
+    color: #9ca3af;
+  }
+
+  .ask-llm-panel__close:hover {
+    background: #374151;
+    color: #f3f4f6;
+  }
+
+  .ask-llm-panel__label {
+    color: #9ca3af;
+  }
+
+  .ask-llm-panel__selection {
+    background: #111827;
+    border-color: #374151;
+    color: #d1d5db;
+  }
+
+  .ask-llm-panel__input {
+    background: #111827;
+    border-color: #4b5563;
+    color: #f3f4f6;
+  }
+
+  .ask-llm-panel__input:focus {
+    border-color: #3b82f6;
+    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.25);
+  }
+
+  .ask-llm-panel__submit {
+    background: #3b82f6;
+    color: #ffffff;
+  }
+
+  .ask-llm-panel__submit:hover:not(:disabled) {
+    background: #2563eb;
+  }
+
+  .ask-llm-panel__stop {
+    background: #ef4444;
+  }
+
+  .ask-llm-panel__stop:hover {
+    background: #dc2626;
+  }
+
+  .ask-llm-panel__answer {
+    background: #172554;
+    border-color: #1e3a5f;
+    color: #e0e7ff;
+  }
+
+  .ask-llm-panel__answer code:not(pre code),
+  .ask-llm-history-turn__answer code:not(pre code) {
+    background: #374151;
+    color: #e5e7eb;
+  }
+
+  .ask-llm-panel__answer pre,
+  .ask-llm-history-turn__answer pre {
+    background: #0f172a;
+  }
+
+  .ask-llm-panel__answer pre code,
+  .ask-llm-history-turn__answer pre code {
+    color: #e2e8f0;
+  }
+
+  .ask-llm-panel__answer a,
+  .ask-llm-history-turn__answer a {
+    color: #60a5fa;
+  }
+
+  .ask-llm-history-toggle {
+    border-bottom-color: #374151;
+    color: #9ca3af;
+  }
+
+  .ask-llm-history-toggle:hover {
+    background: #111827;
+    color: #d1d5db;
+  }
+
+  .ask-llm-history-region {
+    border-bottom-color: #374151;
+  }
+
+  .ask-llm-history-turn:hover {
+    background: #111827;
+  }
+
+  .ask-llm-history-turn__question {
+    color: #d1d5db;
+  }
+
+  .ask-llm-history-turn__question::before {
+    color: #6b7280;
+  }
+
+  .ask-llm-history-turn__selection {
+    background: #111827;
+    border-color: #374151;
+    color: #9ca3af;
+  }
+
+  .ask-llm-history-turn__answer {
+    border-top-color: #374151;
+    color: #d1d5db;
+  }
+
+  .ask-llm-history-clear {
+    color: #6b7280;
+  }
+
+  .ask-llm-history-clear:hover {
+    background: #7f1d1d;
+    color: #fca5a5;
+  }
+
+  .ask-llm-history-clear--confirm {
+    color: #fca5a5;
+  }
+
+  .ask-llm-copy-btn {
+    background: rgba(255, 255, 255, 0.08);
+    color: #9ca3af;
+  }
+
+  .ask-llm-copy-btn:hover {
+    background: rgba(255, 255, 255, 0.14);
+    color: #d1d5db;
+  }
+
+  .ask-llm-copy-btn--copied {
+    background: #14532d;
+    color: #86efac;
+  }
+
+  .ask-llm-preset-chip {
+    background: #111827;
+    border-color: #374151;
+    color: #9ca3af;
+  }
+
+  .ask-llm-preset-chip:hover {
+    background: #172554;
+    border-color: #1e3a5f;
+    color: #60a5fa;
+  }
+
+  .ask-llm-error-text {
+    color: #fca5a5;
+  }
+
+  .ask-llm-retry-btn {
+    background: #374151;
+    border-color: #4b5563;
+    color: #d1d5db;
+  }
+
+  .ask-llm-retry-btn:hover {
+    background: #4b5563;
+    border-color: #6b7280;
+  }
+}

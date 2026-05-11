@@ -10,6 +10,28 @@ export default defineBackground(() => {
 
   chrome.runtime.onInstalled.addListener(async () => {
     await runMigrations();
+    chrome.contextMenus.create({
+      id: "ask-llm",
+      title: "Ask LLM about selection",
+      contexts: ["selection"],
+    });
+  });
+
+  chrome.contextMenus.onClicked.addListener((info, tab) => {
+    if (info.menuItemId !== "ask-llm" || !tab?.id) return;
+    chrome.tabs.sendMessage(tab.id, {
+      type: "ASK_LLM_CONTEXT_MENU",
+      selectionText: info.selectionText ?? "",
+    });
+  });
+
+  chrome.commands.onCommand.addListener((command) => {
+    if (command !== "open-panel") return;
+    chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+      const tabId = tabs[0]?.id;
+      if (!tabId) return;
+      chrome.tabs.sendMessage(tabId, { type: "ASK_LLM_OPEN_PANEL" });
+    });
   });
 
   function isPlainObject(v: unknown): v is Record<string, unknown> {

@@ -2,7 +2,6 @@ import "@/assets/content.css";
 import { STORAGE_KEYS, PORT_NAME, MAX_SELECTION_CHARS, MAX_HISTORY_MESSAGES } from "@/utils/types";
 import type { ChatMessage, StreamPortMessage } from "@/utils/types";
 
-// Heavy deps loaded on demand via loadMarkdownDeps()
 let markdownDeps: {
   marked: typeof import("marked").marked;
   DOMPurify: typeof import("dompurify").default;
@@ -20,6 +19,8 @@ async function loadMarkdownDeps() {
   markdownDeps = { marked, DOMPurify: DOMPurifyMod.default, hljs: hljsMod.default };
   return markdownDeps;
 }
+
+const QUICK_PRESETS = ["Summarize", "Translate to English", "Explain simply", "Fix grammar"];
 
 export default defineContentScript({
   matches: ["http://*/*", "https://*/*"],
@@ -41,12 +42,15 @@ export default defineContentScript({
     let bubbleEl: HTMLButtonElement | null = null;
     let panelEl: HTMLDivElement | null = null;
     let questionInput: HTMLTextAreaElement | null = null;
+    let answerWrapEl: HTMLElement | null = null;
     let answerEl: HTMLElement | null = null;
+    let answerCopyBtn: HTMLButtonElement | null = null;
     let selectionEl: HTMLElement | null = null;
     let submitBtn: HTMLButtonElement | null = null;
     let stopBtn: HTMLButtonElement | null = null;
     let historyToggleEl: HTMLButtonElement | null = null;
     let historyRegionEl: HTMLDivElement | null = null;
+    let presetsEl: HTMLDivElement | null = null;
 
     let lastSelectedText = "";
     let lastSelectionRange: Range | null = null;
@@ -64,6 +68,8 @@ export default defineContentScript({
 
     let flushTimer: ReturnType<typeof setTimeout> | null = null;
     const FLUSH_INTERVAL = 150;
+
+    let lastFailedQuestion: string | null = null;
 
     let turnIdCounter = 0;
     function nextTurnId(): string {
@@ -97,6 +103,35 @@ export default defineContentScript({
         hljs.highlightElement(block);
       });
       return wrapper;
+    }
+
+    // ─── Copy helper ────────────────────────────────────────────────────
+
+    function createCopyButton(getRawText: () => string): HTMLButtonElement {
+      const btn = document.createElement("button");
+      btn.type = "button";
+      btn.className = "ask-llm-copy-btn";
+      btn.textContent = "Copy";
+      btn.addEventListener("click", (e) => {
+        e.stopPropagation();
+        const text = getRawText();
+        if (!text) return;
+        navigator.clipboard.writeText(text).then(() => {
+          btn.textContent = "Copied!";
+          btn.classList.add("ask-llm-copy-btn--copied");
+          setTimeout(() => {
+            btn.textContent = "Copy";
+            btn.classList.remove("ask-llm-copy-btn--copied");
+          }, 1500);
+        });
+      });
+      return btn;
+    }
+
+    function updateAnswerCopyButton(): void {
+      if (!answerCopyBtn || !answerWrapEl) return;
+      const hasAnswer = !!(currentTurn?.answer);
+      answerCopyBtn.hidden = !hasAnswer;
     }
 
     // ─── Positioning ───────────────────────────────────────────────────
@@ -153,6 +188,7 @@ export default defineContentScript({
         '    <p class="ask-llm-panel__label">Selected text</p>',
         '    <div class="ask-llm-panel__selection"></div>',
         "  </div>",
+        '  <div class="ask-llm-presets"></div>',
         '  <label class="ask-llm-panel__label" for="ask-llm-q">Your question</label>',
         '  <textarea id="ask-llm-q" class="ask-llm-panel__input" rows="3"',
         '    placeholder="e.g. Summarize this in one sentence"></textarea>',
@@ -160,7 +196,9 @@ export default defineContentScript({
         '    <button type="button" class="ask-llm-panel__submit">Ask</button>',
         '    <button type="button" class="ask-llm-panel__stop" hidden>Stop</button>',
         "  </div>",
-        '  <div class="ask-llm-panel__answer" aria-live="polite"></div>',
+        '  <div class="ask-llm-answer-wrap">',
+        '    <div class="ask-llm-panel__answer" aria-live="polite"></div>',
+        "  </div>",
         "</div>",
       ].join("");
 
@@ -168,10 +206,31 @@ export default defineContentScript({
       submitBtn = panelEl.querySelector<HTMLButtonElement>(".ask-llm-panel__submit");
       stopBtn = panelEl.querySelector<HTMLButtonElement>(".ask-llm-panel__stop");
       questionInput = panelEl.querySelector<HTMLTextAreaElement>("#ask-llm-q");
+      answerWrapEl = panelEl.querySelector<HTMLElement>(".ask-llm-answer-wrap");
       answerEl = panelEl.querySelector<HTMLElement>(".ask-llm-panel__answer");
       selectionEl = panelEl.querySelector<HTMLElement>(".ask-llm-panel__selection");
       historyToggleEl = panelEl.querySelector<HTMLButtonElement>(".ask-llm-history-toggle");
       historyRegionEl = panelEl.querySelector<HTMLDivElement>(".ask-llm-history-region");
+      presetsEl = panelEl.querySelector<HTMLDivElement>(".ask-llm-presets");
+
+      answerCopyBtn = createCopyButton(() => currentTurn?.answer ?? "");
+      answerCopyBtn.hidden = true;
+      answerWrapEl?.appendChild(answerCopyBtn);
+
+      if (presetsEl) {
+        for (const label of QUICK_PRESETS) {
+          const chip = document.createElement("button");
+          chip.type = "button";
+          chip.className = "ask-llm-preset-chip";
+          chip.textContent = label;
+          chip.addEventListener("click", (e) => {
+            e.stopPropagation();
+            if (questionInput) questionInput.value = label;
+            submitQuestion();
+          });
+          presetsEl.appendChild(chip);
+        }
+      }
 
       closeBtn?.addEventListener("click", (e) => {
         e.stopPropagation();
@@ -258,10 +317,15 @@ export default defineContentScript({
             turnEl.appendChild(selSnippet);
           }
           if (turn.answer) {
+            const answerWrap = document.createElement("div");
+            answerWrap.className = "ask-llm-history-turn__answer-wrap";
             const answerBody = document.createElement("div");
             answerBody.className = "ask-llm-history-turn__answer";
             answerBody.appendChild(renderMarkdown(turn.answer));
-            turnEl.appendChild(answerBody);
+            answerWrap.appendChild(answerBody);
+            const copyBtn = createCopyButton(() => turn.answer);
+            answerWrap.appendChild(copyBtn);
+            turnEl.appendChild(answerWrap);
           }
         }
 
@@ -361,8 +425,10 @@ export default defineContentScript({
           answerEl.textContent = "";
         }
       }
+      updateAnswerCopyButton();
 
       if (questionInput) questionInput.value = "";
+      lastFailedQuestion = null;
       setBusy(false);
       hideBubble();
 
@@ -409,6 +475,7 @@ export default defineContentScript({
         submitBtn.textContent = busy ? "Asking\u2026" : "Ask";
       }
       if (stopBtn) stopBtn.hidden = !busy;
+      if (presetsEl) presetsEl.hidden = busy;
     }
 
     // ─── Streaming ─────────────────────────────────────────────────────
@@ -461,6 +528,7 @@ export default defineContentScript({
         flushTimer = null;
       }
       chunkBuffer = "";
+      lastFailedQuestion = null;
       if (rawAnswer.trim()) {
         conversationHistory.push({ role: "assistant", content: rawAnswer });
         if (currentTurn) currentTurn.answer = rawAnswer;
@@ -475,6 +543,7 @@ export default defineContentScript({
           answerEl.textContent = "";
         }
       }
+      updateAnswerCopyButton();
       streamPort = null;
       setBusy(false);
     }
@@ -485,12 +554,47 @@ export default defineContentScript({
         flushTimer = null;
       }
       chunkBuffer = "";
-      if (answerEl) {
-        answerEl.textContent = `Error: ${errorMsg}`;
-        delete answerEl.dataset.rawMd;
+      if (currentTurn) {
+        lastFailedQuestion = currentTurn.question;
       }
+      if (answerEl) {
+        answerEl.innerHTML = "";
+        delete answerEl.dataset.rawMd;
+
+        const errText = document.createElement("span");
+        errText.className = "ask-llm-error-text";
+        errText.textContent = `Error: ${errorMsg}`;
+        answerEl.appendChild(errText);
+
+        if (lastFailedQuestion) {
+          const retryBtn = document.createElement("button");
+          retryBtn.type = "button";
+          retryBtn.className = "ask-llm-retry-btn";
+          retryBtn.textContent = "Retry";
+          retryBtn.addEventListener("click", (e) => {
+            e.stopPropagation();
+            retryLastQuestion();
+          });
+          answerEl.appendChild(retryBtn);
+        }
+      }
+      if (answerCopyBtn) answerCopyBtn.hidden = true;
       streamPort = null;
       setBusy(false);
+    }
+
+    // ─── Retry ──────────────────────────────────────────────────────────
+
+    function retryLastQuestion(): void {
+      if (!lastFailedQuestion || !questionInput) return;
+      if (conversationHistory.length > 0 && conversationHistory[conversationHistory.length - 1].role === "user") {
+        conversationHistory.pop();
+      }
+      const q = lastFailedQuestion;
+      lastFailedQuestion = null;
+      currentTurn = null;
+      questionInput.value = q;
+      submitQuestion();
     }
 
     // ─── Submit ────────────────────────────────────────────────────────
@@ -507,6 +611,8 @@ export default defineContentScript({
         return;
       }
       if (streamPort) return;
+
+      lastFailedQuestion = null;
 
       if (currentTurn) {
         turns.push(currentTurn);
@@ -528,6 +634,7 @@ export default defineContentScript({
       questionInput.value = "";
       answerEl.textContent = "";
       answerEl.dataset.rawMd = "";
+      if (answerCopyBtn) answerCopyBtn.hidden = true;
       setBusy(true);
 
       streamPort = chrome.runtime.connect(chrome.runtime.id, { name: PORT_NAME });
@@ -628,6 +735,30 @@ export default defineContentScript({
           sendResponse({ enabled: en });
         });
         return true;
+      }
+
+      if (message?.type === "ASK_LLM_CONTEXT_MENU") {
+        const text = String(message.selectionText ?? "").trim();
+        if (!text) return;
+        lastSelectedText = text;
+        lastSelectionRange = null;
+        ensureUi();
+        openPanel();
+        return;
+      }
+
+      if (message?.type === "ASK_LLM_OPEN_PANEL") {
+        if (!featureEnabled) return;
+        const sel = window.getSelection();
+        const text = sel ? sel.toString() : "";
+        if (!text.trim() || !sel || sel.rangeCount === 0) return;
+        const range = sel.getRangeAt(0);
+        if (range.collapsed) return;
+        lastSelectedText = text;
+        lastSelectionRange = range.cloneRange();
+        ensureUi();
+        openPanel();
+        return;
       }
     });
 
