@@ -80,3 +80,4 @@ export const PORT_NAME = "ask-llm-stream";
 export const MAX_SELECTION_CHARS = 200_000;
 export const MAX_RESPONSE_TOKENS = 4096;
 export const MAX_HISTORY_MESSAGES = 20;
+export const FETCH_TIMEOUT_MS = 60_000;

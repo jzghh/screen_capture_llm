@@ -1,4 +1,5 @@
 import type { ChatMessage } from "@/utils/types";
+import { withTimeout } from "./helpers";
 
 interface BackendStreamParams {
   backendUrl: string;
@@ -27,7 +28,7 @@ export async function* streamViaBackend(params: BackendStreamParams): AsyncGener
       Authorization: `Bearer ${backendToken}`,
     },
     body: JSON.stringify({ provider: providerId, model, system, messages }),
-    signal,
+    signal: withTimeout(signal),
   });
 
   if (!res.ok) {

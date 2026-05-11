@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="zh-CN">
+<html lang="en">
   <head>
     <meta charset="UTF-8" />
     <title>Ask LLM</title>
@@ -8,7 +8,7 @@
   <body>
     <main class="popup">
       <h1 class="popup__title">Ask LLM</h1>
-      <p class="popup__meta">M6 · Backend + Launch</p>
+      <p class="popup__meta">v0.6.0</p>
 
       <!-- Connection mode -->
       <label class="popup__field-label" for="mode-select">Connection mode</label>
@@ -56,7 +56,7 @@
       </div>
 
       <button id="btn-save" type="button" class="popup__button">Save settings</button>
-      <p id="save-status" class="popup__hint" hidden></p>
+      <p id="save-status" class="popup__hint" role="status" aria-live="polite" hidden></p>
 
       <label class="popup__row">
         <input id="toggle-enabled" type="checkbox" checked />
@@ -66,12 +66,12 @@
       <button id="btn-ping" type="button" class="popup__button popup__button--secondary">
         Ping service worker
       </button>
-      <p id="ping-result" class="popup__hint" hidden></p>
+      <p id="ping-result" class="popup__hint" role="status" aria-live="polite" hidden></p>
 
       <button id="btn-clear-keys" type="button" class="popup__button popup__button--danger">
         Clear all API keys
       </button>
-      <p id="clear-keys-status" class="popup__hint" hidden></p>
+      <p id="clear-keys-status" class="popup__hint" role="status" aria-live="polite" hidden></p>
 
       <p id="self-hosted-warning" class="popup__warning">
         Self-hosted mode: keys live in chrome.storage.local on this device only.

@@ -15,6 +15,10 @@ const ADAPTERS: Record<string, Adapter> = {
 
 let registryCache: ProviderRegistry | null = null;
 
+export function clearRegistryCache(): void {
+  registryCache = null;
+}
+
 async function loadRegistry(): Promise<ProviderRegistry> {
   if (registryCache) return registryCache;
   const url = chrome.runtime.getURL("providers.json");

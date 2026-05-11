@@ -149,3 +149,117 @@ body {
 .popup__button--danger:hover {
   background: #b91c1c;
 }
+
+.popup__button--confirm {
+  background: #b91c1c;
+}
+
+.popup__hint--ok {
+  color: #059669;
+}
+
+.popup__hint--error {
+  color: #b91c1c;
+}
+
+.popup__input:focus-visible {
+  outline: none;
+  border-color: #2563eb;
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.2);
+}
+
+.popup__button:focus-visible {
+  outline: 2px solid #2563eb;
+  outline-offset: 2px;
+}
+
+@media (prefers-color-scheme: dark) {
+  body {
+    color: #f3f4f6;
+    background: #111827;
+  }
+
+  .popup__meta {
+    color: #9ca3af;
+  }
+
+  .popup__field-label {
+    color: #9ca3af;
+  }
+
+  .popup__input {
+    background: #1f2937;
+    border-color: #4b5563;
+    color: #f3f4f6;
+  }
+
+  .popup__input:focus,
+  .popup__input:focus-visible {
+    border-color: #3b82f6;
+    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.25);
+  }
+
+  .popup__input:disabled {
+    background: #374151;
+    color: #6b7280;
+  }
+
+  .popup__button {
+    background: #3b82f6;
+    color: #fff;
+  }
+
+  .popup__button:hover {
+    background: #2563eb;
+  }
+
+  .popup__button--secondary {
+    background: #4b5563;
+  }
+
+  .popup__button--secondary:hover {
+    background: #374151;
+  }
+
+  .popup__button--danger {
+    background: #dc2626;
+  }
+
+  .popup__button--danger:hover {
+    background: #b91c1c;
+  }
+
+  .popup__button--confirm {
+    background: #b91c1c;
+  }
+
+  .popup__button:focus-visible {
+    outline-color: #60a5fa;
+  }
+
+  .popup__hint--ok {
+    color: #34d399;
+  }
+
+  .popup__hint--error {
+    color: #fca5a5;
+  }
+
+  .popup__sub-hint {
+    color: #9ca3af;
+  }
+
+  .popup__security-note {
+    color: #6b7280;
+  }
+
+  .popup__warning {
+    color: #fcd34d;
+    background: #78350f;
+    border-color: #92400e;
+  }
+
+  .popup__row {
+    color: #d1d5db;
+  }
+}

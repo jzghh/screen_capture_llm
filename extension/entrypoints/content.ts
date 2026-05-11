@@ -48,6 +48,7 @@ export default defineContentScript({
     const FLUSH_INTERVAL = 150;
 
     let lastFailedQuestion: string | null = null;
+    let previousActiveElement: Element | null = null;
 
     let turnIdCounter = 0;
     function nextTurnId(): string {
@@ -90,14 +91,17 @@ export default defineContentScript({
 
       panelEl = document.createElement("div");
       panelEl.className = "ask-llm-panel";
+      panelEl.setAttribute("role", "dialog");
+      panelEl.setAttribute("aria-labelledby", "ask-llm-panel-title");
+      panelEl.setAttribute("aria-modal", "true");
       panelEl.hidden = true;
       panelEl.innerHTML = [
         '<div class="ask-llm-panel__header">',
-        '  <span class="ask-llm-panel__title">Ask LLM</span>',
+        '  <span id="ask-llm-panel-title" class="ask-llm-panel__title">Ask LLM</span>',
         '  <button type="button" class="ask-llm-panel__close" aria-label="Close">\u2715</button>',
         "</div>",
-        '<button type="button" class="ask-llm-history-toggle" hidden></button>',
-        '<div class="ask-llm-history-region" hidden></div>',
+        '<button type="button" class="ask-llm-history-toggle" hidden aria-controls="ask-llm-history-region"></button>',
+        '<div id="ask-llm-history-region" class="ask-llm-history-region" hidden></div>',
         '<div class="ask-llm-panel__body">',
         '  <div class="ask-llm-panel__selection-wrap">',
         '    <p class="ask-llm-panel__label">Selected text</p>',
@@ -106,7 +110,7 @@ export default defineContentScript({
         '  <div class="ask-llm-presets"></div>',
         '  <label class="ask-llm-panel__label" for="ask-llm-q">Your question</label>',
         '  <textarea id="ask-llm-q" class="ask-llm-panel__input" rows="3"',
-        '    placeholder="e.g. Summarize this in one sentence"></textarea>',
+        '    placeholder="e.g. Summarize this in one sentence (Ctrl+Enter to send)"></textarea>',
         '  <div class="ask-llm-panel__row">',
         '    <button type="button" class="ask-llm-panel__submit">Ask</button>',
         '    <button type="button" class="ask-llm-panel__stop" hidden>Stop</button>',
@@ -172,6 +176,23 @@ export default defineContentScript({
         }
       });
 
+      panelEl.addEventListener("keydown", (e) => {
+        if (e.key !== "Tab") return;
+        const focusable = panelEl!.querySelectorAll<HTMLElement>(
+          'button:not([hidden]):not([disabled]), textarea:not([disabled]), [tabindex="0"]',
+        );
+        if (focusable.length === 0) return;
+        const first = focusable[0];
+        const last = focusable[focusable.length - 1];
+        if (e.shiftKey && document.activeElement === first) {
+          e.preventDefault();
+          last.focus();
+        } else if (!e.shiftKey && document.activeElement === last) {
+          e.preventDefault();
+          first.focus();
+        }
+      });
+
       document.body.append(bubbleEl, panelEl);
     }
 
@@ -191,6 +212,7 @@ export default defineContentScript({
         return;
       }
       historyToggleEl.hidden = false;
+      historyToggleEl.setAttribute("aria-expanded", String(isHistoryExpanded));
       const arrow = isHistoryExpanded ? "\u25BC" : "\u25B8";
       historyToggleEl.textContent = `${arrow} History (${n})`;
     }
@@ -210,8 +232,10 @@ export default defineContentScript({
         const isExpanded = expandedTurnIds.has(turn.id);
         if (isExpanded) turnEl.classList.add("ask-llm-history-turn--expanded");
 
-        const questionHeader = document.createElement("div");
+        const questionHeader = document.createElement("button");
+        questionHeader.type = "button";
         questionHeader.className = "ask-llm-history-turn__question";
+        questionHeader.setAttribute("aria-expanded", String(isExpanded));
         questionHeader.textContent = turn.question;
         questionHeader.addEventListener("click", (e) => {
           e.stopPropagation();
@@ -315,10 +339,15 @@ export default defineContentScript({
       abortStream();
       hidePanel();
       hideBubble();
+      if (previousActiveElement instanceof HTMLElement) {
+        previousActiveElement.focus();
+      }
+      previousActiveElement = null;
     }
 
     function openPanel(): void {
       if (!panelEl || !selectionEl) return;
+      previousActiveElement = document.activeElement;
       selectionEl.textContent =
         lastSelectedText.slice(0, 500) + (lastSelectedText.length > 500 ? "\u2026" : "");
 
@@ -382,6 +411,7 @@ export default defineContentScript({
       panelEl.style.top = `${pos.top}px`;
       panelEl.style.left = `${pos.left}px`;
       panelEl.style.visibility = "";
+      questionInput?.focus({ preventScroll: true });
     }
 
     function setBusy(busy: boolean): void {

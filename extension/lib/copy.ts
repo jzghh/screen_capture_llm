@@ -2,6 +2,7 @@ export function createCopyButton(getRawText: () => string): HTMLButtonElement {
   const btn = document.createElement("button");
   btn.type = "button";
   btn.className = "ask-llm-copy-btn";
+  btn.setAttribute("aria-label", "Copy answer");
   btn.textContent = "Copy";
   btn.addEventListener("click", (e) => {
     e.stopPropagation();

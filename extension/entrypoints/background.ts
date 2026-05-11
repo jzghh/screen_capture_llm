@@ -1,4 +1,4 @@
-import { listProviders, getProvider, streamProvider } from "@/providers";
+import { listProviders, getProvider, streamProvider, clearRegistryCache } from "@/providers";
 import { streamViaBackend } from "@/providers/adapters/backend";
 import { buildSystemPrompt, buildUserContent } from "@/utils/prompts";
 import { loadProviderParams } from "@/utils/storage";
@@ -10,7 +10,9 @@ export default defineBackground(() => {
   // ─── Migrations ───────────────────────────────────────────────────────────
 
   chrome.runtime.onInstalled.addListener(async () => {
+    clearRegistryCache();
     await runMigrations();
+    await chrome.contextMenus.removeAll();
     chrome.contextMenus.create({
       id: "ask-llm",
       title: "Ask LLM about selection",

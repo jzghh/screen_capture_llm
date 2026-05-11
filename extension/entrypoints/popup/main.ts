@@ -56,7 +56,8 @@ async function loadProviderRegistry(): Promise<RegistryResponse> {
 function setSaveStatus(text: string, ok = true): void {
   if (!saveStatus) return;
   saveStatus.hidden = false;
-  saveStatus.style.color = ok ? "#059669" : "#b91c1c";
+  saveStatus.classList.toggle("popup__hint--ok", ok);
+  saveStatus.classList.toggle("popup__hint--error", !ok);
   saveStatus.textContent = text;
 }
 
@@ -175,6 +176,18 @@ providerSelectEl?.addEventListener("change", () => {
 saveBtn?.addEventListener("click", async () => {
   captureFormIntoDraft();
 
+  if (currentMode === "backend") {
+    const rawUrl = backendUrlEl?.value.trim() ?? "";
+    if (rawUrl) {
+      try {
+        new URL(rawUrl);
+      } catch {
+        setSaveStatus("Invalid backend URL format.", false);
+        return;
+      }
+    }
+  }
+
   const saveData: Record<string, unknown> = {
     [STORAGE_KEYS.mode]: currentMode,
     [STORAGE_KEYS.provider]: currentProviderId,
@@ -233,7 +246,8 @@ pingBtn?.addEventListener("click", async () => {
       | undefined;
     if (pingResult) {
       pingResult.hidden = false;
-      pingResult.style.color = "#059669";
+      pingResult.classList.add("popup__hint--ok");
+      pingResult.classList.remove("popup__hint--error");
       pingResult.textContent = response
         ? `OK \u00B7 ${response.from} \u00B7 ts=${response.ts}`
         : "No response";
@@ -241,13 +255,44 @@ pingBtn?.addEventListener("click", async () => {
   } catch (e) {
     if (pingResult) {
       pingResult.hidden = false;
-      pingResult.style.color = "#b91c1c";
+      pingResult.classList.add("popup__hint--error");
+      pingResult.classList.remove("popup__hint--ok");
       pingResult.textContent = e instanceof Error ? e.message : String(e);
     }
   }
 });
 
+let clearKeysConfirmPending = false;
+let clearKeysConfirmTimer: ReturnType<typeof setTimeout> | null = null;
+
 clearKeysBtn?.addEventListener("click", async () => {
+  if (!clearKeysConfirmPending) {
+    clearKeysConfirmPending = true;
+    if (clearKeysBtn) {
+      clearKeysBtn.textContent = "Confirm clear?";
+      clearKeysBtn.classList.add("popup__button--confirm");
+    }
+    clearKeysConfirmTimer = setTimeout(() => {
+      clearKeysConfirmPending = false;
+      clearKeysConfirmTimer = null;
+      if (clearKeysBtn) {
+        clearKeysBtn.textContent = "Clear all API keys";
+        clearKeysBtn.classList.remove("popup__button--confirm");
+      }
+    }, 2000);
+    return;
+  }
+
+  clearKeysConfirmPending = false;
+  if (clearKeysConfirmTimer !== null) {
+    clearTimeout(clearKeysConfirmTimer);
+    clearKeysConfirmTimer = null;
+  }
+  if (clearKeysBtn) {
+    clearKeysBtn.textContent = "Clear all API keys";
+    clearKeysBtn.classList.remove("popup__button--confirm");
+  }
+
   await chrome.storage.local.set({ [STORAGE_KEYS.keys]: {} });
   for (const id of Object.keys(drafts)) {
     drafts[id].apiKey = "";
@@ -255,7 +300,8 @@ clearKeysBtn?.addEventListener("click", async () => {
   if (apiKeyEl) apiKeyEl.value = "";
   if (clearKeysStatus) {
     clearKeysStatus.hidden = false;
-    clearKeysStatus.style.color = "#059669";
+    clearKeysStatus.classList.add("popup__hint--ok");
+    clearKeysStatus.classList.remove("popup__hint--error");
     clearKeysStatus.textContent = "All API keys cleared.";
   }
 });

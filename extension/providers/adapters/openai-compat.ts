@@ -1,6 +1,6 @@
 import type { Adapter, AdapterParams, ProviderEntry } from "@/utils/types";
 import { MAX_RESPONSE_TOKENS } from "@/utils/types";
-import { trimSlash, extractError } from "./helpers";
+import { trimSlash, extractError, withTimeout } from "./helpers";
 
 function extractText(data: unknown): string | null {
   if (!data || typeof data !== "object") return null;
@@ -43,7 +43,7 @@ async function complete(params: AdapterParams): Promise<string> {
       max_tokens: MAX_RESPONSE_TOKENS,
       messages: [{ role: "system", content: system }, ...messages],
     }),
-    signal,
+    signal: withTimeout(signal),
   });
 
   const raw = await res.text();
@@ -74,7 +74,7 @@ async function* stream(params: AdapterParams): AsyncGenerator<string> {
       stream: true,
       messages: [{ role: "system", content: system }, ...messages],
     }),
-    signal,
+    signal: withTimeout(signal),
   });
 
   if (!res.ok) {

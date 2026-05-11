@@ -21,6 +21,7 @@
     "chrome-types": "^0.1.425",
     "eslint": "^10.3.0",
     "eslint-config-prettier": "^10.1.8",
+    "jsdom": "^29.1.1",
     "prettier": "^3.8.3",
     "typescript": "^6.0.3",
     "typescript-eslint": "^8.59.2",

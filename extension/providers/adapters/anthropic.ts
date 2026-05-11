@@ -1,6 +1,6 @@
 import type { Adapter, AdapterParams } from "@/utils/types";
 import { MAX_RESPONSE_TOKENS } from "@/utils/types";
-import { trimSlash, extractError } from "./helpers";
+import { trimSlash, extractError, withTimeout } from "./helpers";
 
 const ANTHROPIC_VERSION = "2023-06-01";
 
@@ -20,7 +20,7 @@ async function complete(params: AdapterParams): Promise<string> {
     method: "POST",
     headers: buildHeaders(apiKey),
     body: JSON.stringify({ model, max_tokens: MAX_RESPONSE_TOKENS, system, messages }),
-    signal,
+    signal: withTimeout(signal),
   });
 
   const raw = await res.text();
@@ -51,7 +51,7 @@ async function* stream(params: AdapterParams): AsyncGenerator<string> {
     method: "POST",
     headers: buildHeaders(apiKey),
     body: JSON.stringify({ model, max_tokens: MAX_RESPONSE_TOKENS, system, messages, stream: true }),
-    signal,
+    signal: withTimeout(signal),
   });
 
   if (!res.ok) {

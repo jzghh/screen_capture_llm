@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { trimSlash, extractError } from "../helpers";
+import { trimSlash, extractError, withTimeout } from "../helpers";
 
 describe("trimSlash", () => {
   it("removes trailing slash", () => {
@@ -38,5 +38,27 @@ describe("extractError", () => {
 
   it("returns empty string when error.message is not a string", () => {
     expect(extractError({ error: { message: 42 } })).toBe("");
+  });
+});
+
+describe("withTimeout", () => {
+  it("returns an AbortSignal when called with no signal", () => {
+    const result = withTimeout(undefined, 5000);
+    expect(result).toBeInstanceOf(AbortSignal);
+    expect(result.aborted).toBe(false);
+  });
+
+  it("returns an AbortSignal when called with an existing signal", () => {
+    const controller = new AbortController();
+    const result = withTimeout(controller.signal, 5000);
+    expect(result).toBeInstanceOf(AbortSignal);
+    expect(result.aborted).toBe(false);
+  });
+
+  it("aborts when the caller signal aborts", () => {
+    const controller = new AbortController();
+    const result = withTimeout(controller.signal, 60_000);
+    controller.abort();
+    expect(result.aborted).toBe(true);
   });
 });
