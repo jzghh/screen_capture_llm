@@ -18,6 +18,7 @@ export default defineContentScript({
       id: string;
       question: string;
       answer: string;
+      selection: string;
     }
 
     // ─── State ─────────────────────────────────────────────────────────
@@ -224,11 +225,19 @@ export default defineContentScript({
         });
         turnEl.appendChild(questionHeader);
 
-        if (isExpanded && turn.answer) {
-          const answerBody = document.createElement("div");
-          answerBody.className = "ask-llm-history-turn__answer";
-          answerBody.appendChild(renderMarkdown(turn.answer));
-          turnEl.appendChild(answerBody);
+        if (isExpanded) {
+          if (turn.selection) {
+            const selSnippet = document.createElement("div");
+            selSnippet.className = "ask-llm-history-turn__selection";
+            selSnippet.textContent = turn.selection;
+            turnEl.appendChild(selSnippet);
+          }
+          if (turn.answer) {
+            const answerBody = document.createElement("div");
+            answerBody.className = "ask-llm-history-turn__answer";
+            answerBody.appendChild(renderMarkdown(turn.answer));
+            turnEl.appendChild(answerBody);
+          }
         }
 
         historyRegionEl.appendChild(turnEl);
@@ -308,6 +317,11 @@ export default defineContentScript({
       if (!panelEl || !selectionEl) return;
       selectionEl.textContent =
         lastSelectedText.slice(0, 500) + (lastSelectedText.length > 500 ? "\u2026" : "");
+
+      if (currentTurn && currentTurn.selection !== lastSelectedText) {
+        turns.push(currentTurn);
+        currentTurn = null;
+      }
 
       isHistoryExpanded = false;
       renderHistoryToggle();
@@ -458,7 +472,7 @@ export default defineContentScript({
         if (isHistoryExpanded) renderHistoryRegion();
       }
 
-      currentTurn = { id: nextTurnId(), question, answer: "" };
+      currentTurn = { id: nextTurnId(), question, answer: "", selection: lastSelectedText };
 
       const userContent = [
         question,

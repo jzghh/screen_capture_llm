@@ -304,6 +304,21 @@
   content: "\25BC ";
 }
 
+.ask-llm-history-turn__selection {
+  margin: 0.15rem 0.5rem 0;
+  padding: 0.35rem 0.5rem;
+  font-size: 0.78rem;
+  line-height: 1.4;
+  color: #6b7280;
+  background: #f9fafb;
+  border: 1px solid #e5e7eb;
+  border-radius: 0.35rem;
+  white-space: pre-wrap;
+  word-break: break-word;
+  max-height: 3rem;
+  overflow: hidden;
+}
+
 .ask-llm-history-turn__answer {
   padding: 0.35rem 0.5rem 0.5rem;
   font-size: 0.85rem;
