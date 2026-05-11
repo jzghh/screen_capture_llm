@@ -12,7 +12,15 @@ export default defineContentScript({
   cssInjectionMode: "manifest",
 
   main() {
-    // ─── State ────────────────────────────────────────────────────────────
+    // ─── Types ─────────────────────────────────────────────────────────
+
+    interface Turn {
+      id: string;
+      question: string;
+      answer: string;
+    }
+
+    // ─── State ─────────────────────────────────────────────────────────
 
     let bubbleEl: HTMLButtonElement | null = null;
     let panelEl: HTMLDivElement | null = null;
@@ -21,16 +29,30 @@ export default defineContentScript({
     let selectionEl: HTMLElement | null = null;
     let submitBtn: HTMLButtonElement | null = null;
     let stopBtn: HTMLButtonElement | null = null;
-    let historyEl: HTMLElement | null = null;
+    let historyToggleEl: HTMLButtonElement | null = null;
+    let historyRegionEl: HTMLDivElement | null = null;
 
     let lastSelectedText = "";
+    let lastSelectionRange: Range | null = null;
     let featureEnabled = true;
     let conversationHistory: ChatMessage[] = [];
     let streamPort: chrome.runtime.Port | null = null;
     let chunkBuffer = "";
     let rafPending = false;
 
-    // ─── Storage ──────────────────────────────────────────────────────────
+    let turns: Turn[] = [];
+    let currentTurn: Turn | null = null;
+    let isHistoryExpanded = false;
+    const expandedTurnIds = new Set<string>();
+    let clearConfirmTimer: ReturnType<typeof setTimeout> | null = null;
+    let clearConfirmActive = false;
+
+    let turnIdCounter = 0;
+    function nextTurnId(): string {
+      return `turn-${++turnIdCounter}`;
+    }
+
+    // ─── Storage ───────────────────────────────────────────────────────
 
     async function readEnabledFromStorage(): Promise<boolean> {
       const data = await chrome.storage.local.get(STORAGE_KEYS.enabled);
@@ -38,7 +60,7 @@ export default defineContentScript({
       return featureEnabled;
     }
 
-    // ─── Markdown rendering ───────────────────────────────────────────────
+    // ─── Markdown rendering ────────────────────────────────────────────
 
     function renderMarkdown(raw: string): HTMLElement {
       const html = DOMPurify.sanitize(marked.parse(raw, { gfm: true, breaks: true }) as string, {
@@ -53,7 +75,28 @@ export default defineContentScript({
       return wrapper;
     }
 
-    // ─── UI building ──────────────────────────────────────────────────────
+    // ─── Positioning ───────────────────────────────────────────────────
+
+    function computePanelPosition(
+      selRect: DOMRect,
+      panelSize: { width: number; height: number },
+      viewport = { w: window.innerWidth, h: window.innerHeight },
+    ): { top: number; left: number } {
+      const M = 12;
+      const { w: vw, h: vh } = viewport;
+      const { width: pw, height: ph } = panelSize;
+
+      let top = selRect.bottom + M;
+      if (top + ph > vh - M) {
+        const above = selRect.top - ph - M;
+        top = above >= M ? above : Math.max(M, (vh - ph) / 2);
+      }
+
+      const left = Math.min(Math.max(M, selRect.left), vw - pw - M);
+      return { top, left };
+    }
+
+    // ─── UI building ───────────────────────────────────────────────────
 
     function ensureUi(): void {
       if (bubbleEl && panelEl) return;
@@ -75,12 +118,10 @@ export default defineContentScript({
       panelEl.innerHTML = [
         '<div class="ask-llm-panel__header">',
         '  <span class="ask-llm-panel__title">Ask LLM</span>',
-        '  <div class="ask-llm-panel__header-actions">',
-        '    <button type="button" class="ask-llm-panel__clear" title="Clear conversation">\u21BA</button>',
-        '    <button type="button" class="ask-llm-panel__close" aria-label="Close">\u2715</button>',
-        "  </div>",
+        '  <button type="button" class="ask-llm-panel__close" aria-label="Close">\u2715</button>',
         "</div>",
-        '<div class="ask-llm-panel__history" aria-live="polite"></div>',
+        '<button type="button" class="ask-llm-history-toggle" hidden></button>',
+        '<div class="ask-llm-history-region" hidden></div>',
         '<div class="ask-llm-panel__body">',
         '  <div class="ask-llm-panel__selection-wrap">',
         '    <p class="ask-llm-panel__label">Selected text</p>',
@@ -98,21 +139,21 @@ export default defineContentScript({
       ].join("");
 
       const closeBtn = panelEl.querySelector<HTMLButtonElement>(".ask-llm-panel__close");
-      const clearBtn = panelEl.querySelector<HTMLButtonElement>(".ask-llm-panel__clear");
       submitBtn = panelEl.querySelector<HTMLButtonElement>(".ask-llm-panel__submit");
       stopBtn = panelEl.querySelector<HTMLButtonElement>(".ask-llm-panel__stop");
       questionInput = panelEl.querySelector<HTMLTextAreaElement>("#ask-llm-q");
       answerEl = panelEl.querySelector<HTMLElement>(".ask-llm-panel__answer");
       selectionEl = panelEl.querySelector<HTMLElement>(".ask-llm-panel__selection");
-      historyEl = panelEl.querySelector<HTMLElement>(".ask-llm-panel__history");
+      historyToggleEl = panelEl.querySelector<HTMLButtonElement>(".ask-llm-history-toggle");
+      historyRegionEl = panelEl.querySelector<HTMLDivElement>(".ask-llm-history-region");
 
       closeBtn?.addEventListener("click", (e) => {
         e.stopPropagation();
         closePanel();
       });
-      clearBtn?.addEventListener("click", (e) => {
+      historyToggleEl?.addEventListener("click", (e) => {
         e.stopPropagation();
-        clearConversation();
+        toggleHistory();
       });
       submitBtn?.addEventListener("click", (e) => {
         e.stopPropagation();
@@ -134,7 +175,117 @@ export default defineContentScript({
       document.body.append(bubbleEl, panelEl);
     }
 
-    // ─── Panel state ──────────────────────────────────────────────────────
+    // ─── History ───────────────────────────────────────────────────────
+
+    function toggleHistory(): void {
+      isHistoryExpanded = !isHistoryExpanded;
+      renderHistoryToggle();
+      renderHistoryRegion();
+    }
+
+    function renderHistoryToggle(): void {
+      if (!historyToggleEl) return;
+      const n = turns.length;
+      if (n === 0) {
+        historyToggleEl.hidden = true;
+        return;
+      }
+      historyToggleEl.hidden = false;
+      const arrow = isHistoryExpanded ? "\u25BC" : "\u25B8";
+      historyToggleEl.textContent = `${arrow} History (${n})`;
+    }
+
+    function renderHistoryRegion(): void {
+      if (!historyRegionEl) return;
+      if (!isHistoryExpanded || turns.length === 0) {
+        historyRegionEl.hidden = true;
+        return;
+      }
+      historyRegionEl.hidden = false;
+      historyRegionEl.innerHTML = "";
+
+      for (const turn of turns) {
+        const turnEl = document.createElement("div");
+        turnEl.className = "ask-llm-history-turn";
+        const isExpanded = expandedTurnIds.has(turn.id);
+        if (isExpanded) turnEl.classList.add("ask-llm-history-turn--expanded");
+
+        const questionHeader = document.createElement("div");
+        questionHeader.className = "ask-llm-history-turn__question";
+        questionHeader.textContent = turn.question;
+        questionHeader.addEventListener("click", (e) => {
+          e.stopPropagation();
+          if (expandedTurnIds.has(turn.id)) {
+            expandedTurnIds.delete(turn.id);
+          } else {
+            expandedTurnIds.add(turn.id);
+          }
+          renderHistoryRegion();
+        });
+        turnEl.appendChild(questionHeader);
+
+        if (isExpanded && turn.answer) {
+          const answerBody = document.createElement("div");
+          answerBody.className = "ask-llm-history-turn__answer";
+          answerBody.appendChild(renderMarkdown(turn.answer));
+          turnEl.appendChild(answerBody);
+        }
+
+        historyRegionEl.appendChild(turnEl);
+      }
+
+      const clearRow = document.createElement("div");
+      clearRow.className = "ask-llm-history-clear-row";
+      const clearBtn = document.createElement("button");
+      clearBtn.type = "button";
+      clearBtn.className = "ask-llm-history-clear";
+      clearBtn.textContent = clearConfirmActive ? "Confirm clear?" : "Clear";
+      if (clearConfirmActive) clearBtn.classList.add("ask-llm-history-clear--confirm");
+      clearBtn.addEventListener("click", (e) => {
+        e.stopPropagation();
+        handleClearClick();
+      });
+      clearRow.appendChild(clearBtn);
+      historyRegionEl.appendChild(clearRow);
+    }
+
+    function handleClearClick(): void {
+      if (clearConfirmActive) {
+        clearConfirmActive = false;
+        if (clearConfirmTimer !== null) {
+          clearTimeout(clearConfirmTimer);
+          clearConfirmTimer = null;
+        }
+        clearHistory();
+        return;
+      }
+
+      clearConfirmActive = true;
+      renderHistoryRegion();
+      clearConfirmTimer = setTimeout(() => {
+        clearConfirmTimer = null;
+        clearConfirmActive = false;
+        renderHistoryRegion();
+      }, 2000);
+    }
+
+    function clearHistory(): void {
+      turns.length = 0;
+      expandedTurnIds.clear();
+
+      if (currentTurn) {
+        const keepCount = currentTurn.answer ? 2 : 1;
+        conversationHistory = conversationHistory.slice(-keepCount);
+      } else {
+        conversationHistory = [];
+      }
+
+      isHistoryExpanded = false;
+      renderHistoryToggle();
+      renderHistoryRegion();
+    }
+
+    // ─── Panel state ───────────────────────────────────────────────────
 
     function hideBubble(): void {
       if (bubbleEl) bubbleEl.hidden = true;
@@ -157,17 +308,61 @@ export default defineContentScript({
       if (!panelEl || !selectionEl) return;
       selectionEl.textContent =
         lastSelectedText.slice(0, 500) + (lastSelectedText.length > 500 ? "\u2026" : "");
-      panelEl.hidden = false;
-      hideBubble();
-      if (questionInput) questionInput.value = "";
-      if (answerEl) answerEl.textContent = "";
-      setBusy(false);
-    }
 
-    function clearConversation(): void {
-      conversationHistory = [];
-      if (historyEl) historyEl.innerHTML = "";
-      if (answerEl) answerEl.textContent = "";
+      isHistoryExpanded = false;
+      renderHistoryToggle();
+      renderHistoryRegion();
+
+      if (answerEl) {
+        delete answerEl.dataset.rawMd;
+        if (currentTurn?.answer) {
+          answerEl.innerHTML = "";
+          answerEl.appendChild(renderMarkdown(currentTurn.answer));
+        } else {
+          answerEl.textContent = "";
+        }
+      }
+
+      if (questionInput) questionInput.value = "";
+      setBusy(false);
+      hideBubble();
+
+      // Show panel invisibly to measure its size, then position it
+      panelEl.hidden = false;
+      panelEl.style.visibility = "hidden";
+
+      if (window.innerWidth < 480) {
+        panelEl.style.maxWidth = `${window.innerWidth - 24}px`;
+      } else {
+        panelEl.style.maxWidth = "";
+      }
+
+      const panelRect = panelEl.getBoundingClientRect();
+      const panelSize = { width: panelRect.width, height: panelRect.height };
+      const vw = window.innerWidth;
+      const vh = window.innerHeight;
+
+      let pos: { top: number; left: number };
+      if (lastSelectionRange) {
+        const selRect = lastSelectionRange.getBoundingClientRect();
+        if (selRect.width > 0 || selRect.height > 0) {
+          pos = computePanelPosition(selRect, panelSize);
+        } else {
+          pos = {
+            top: Math.max(12, (vh - panelSize.height) / 2),
+            left: Math.max(12, (vw - panelSize.width) / 2),
+          };
+        }
+      } else {
+        pos = {
+          top: Math.max(12, (vh - panelSize.height) / 2),
+          left: Math.max(12, (vw - panelSize.width) / 2),
+        };
+      }
+
+      panelEl.style.top = `${pos.top}px`;
+      panelEl.style.left = `${pos.left}px`;
+      panelEl.style.visibility = "";
     }
 
     function setBusy(busy: boolean): void {
@@ -178,7 +373,7 @@ export default defineContentScript({
       if (stopBtn) stopBtn.hidden = !busy;
     }
 
-    // ─── Streaming ────────────────────────────────────────────────────────
+    // ─── Streaming ─────────────────────────────────────────────────────
 
     function abortStream(): void {
       if (streamPort) {
@@ -217,11 +412,17 @@ export default defineContentScript({
     function onStreamDone(rawAnswer: string): void {
       if (rawAnswer.trim()) {
         conversationHistory.push({ role: "assistant", content: rawAnswer });
-        appendToHistory("assistant", rawAnswer);
+        if (currentTurn) currentTurn.answer = rawAnswer;
       }
       if (answerEl) {
         delete answerEl.dataset.rawMd;
-        answerEl.textContent = "";
+        if (rawAnswer.trim()) {
+          const rendered = renderMarkdown(rawAnswer);
+          answerEl.innerHTML = "";
+          answerEl.appendChild(rendered);
+        } else {
+          answerEl.textContent = "";
+        }
       }
       streamPort = null;
       setBusy(false);
@@ -236,27 +437,7 @@ export default defineContentScript({
       setBusy(false);
     }
 
-    function appendToHistory(role: "user" | "assistant", rawMd: string): void {
-      if (!historyEl) return;
-      const turn = document.createElement("div");
-      turn.className = `ask-llm-turn ask-llm-turn--${role}`;
-
-      const label = document.createElement("div");
-      label.className = "ask-llm-turn__label";
-      label.textContent = role === "user" ? "You" : "Assistant";
-      turn.appendChild(label);
-
-      const body = document.createElement("div");
-      body.className = "ask-llm-turn__body";
-      if (role === "assistant") {
-        body.appendChild(renderMarkdown(rawMd));
-      } else {
-        body.textContent = rawMd;
-      }
-      turn.appendChild(body);
-      historyEl.appendChild(turn);
-      historyEl.scrollTop = historyEl.scrollHeight;
-    }
+    // ─── Submit ────────────────────────────────────────────────────────
 
     function submitQuestion(): void {
       if (!questionInput || !answerEl) return;
@@ -271,6 +452,14 @@ export default defineContentScript({
       }
       if (streamPort) return;
 
+      if (currentTurn) {
+        turns.push(currentTurn);
+        renderHistoryToggle();
+        if (isHistoryExpanded) renderHistoryRegion();
+      }
+
+      currentTurn = { id: nextTurnId(), question, answer: "" };
+
       const userContent = [
         question,
         "",
@@ -279,7 +468,6 @@ export default defineContentScript({
         "</page_selection>",
       ].join("\n");
       conversationHistory.push({ role: "user", content: userContent });
-      appendToHistory("user", question);
 
       questionInput.value = "";
       answerEl.textContent = "";
@@ -315,7 +503,7 @@ export default defineContentScript({
       });
     }
 
-    // ─── Selection detection ──────────────────────────────────────────────
+    // ─── Selection detection ───────────────────────────────────────────
 
     function placeBubble(range: Range): void {
       if (!bubbleEl) return;
@@ -348,6 +536,7 @@ export default defineContentScript({
       const range = sel.getRangeAt(0);
       if (range.collapsed) return;
       lastSelectedText = text;
+      lastSelectionRange = range.cloneRange();
       if (panelEl && !panelEl.hidden) return;
       placeBubble(range);
     }
