@@ -1,4 +1,5 @@
 import type { Adapter, AdapterParams } from "@/utils/types";
+import { MAX_RESPONSE_TOKENS } from "@/utils/types";
 
 const ANTHROPIC_VERSION = "2023-06-01";
 
@@ -32,7 +33,7 @@ async function complete(params: AdapterParams): Promise<string> {
   const res = await fetch(url, {
     method: "POST",
     headers: buildHeaders(apiKey),
-    body: JSON.stringify({ model, max_tokens: 2048, system, messages }),
+    body: JSON.stringify({ model, max_tokens: MAX_RESPONSE_TOKENS, system, messages }),
     signal,
   });
 
@@ -63,7 +64,7 @@ async function* stream(params: AdapterParams): AsyncGenerator<string> {
   const res = await fetch(url, {
     method: "POST",
     headers: buildHeaders(apiKey),
-    body: JSON.stringify({ model, max_tokens: 2048, system, messages, stream: true }),
+    body: JSON.stringify({ model, max_tokens: MAX_RESPONSE_TOKENS, system, messages, stream: true }),
     signal,
   });
 

@@ -1,10 +1,25 @@
-import { marked } from "marked";
-import DOMPurify from "dompurify";
-import hljs from "highlight.js";
-import "highlight.js/styles/github.css";
 import "@/assets/content.css";
-import { STORAGE_KEYS, PORT_NAME, MAX_SELECTION_CHARS } from "@/utils/types";
+import { STORAGE_KEYS, PORT_NAME, MAX_SELECTION_CHARS, MAX_HISTORY_MESSAGES } from "@/utils/types";
 import type { ChatMessage, StreamPortMessage } from "@/utils/types";
+
+// Heavy deps loaded on demand via loadMarkdownDeps()
+let markdownDeps: {
+  marked: typeof import("marked").marked;
+  DOMPurify: typeof import("dompurify").default;
+  hljs: typeof import("highlight.js").default;
+} | null = null;
+
+async function loadMarkdownDeps() {
+  if (markdownDeps) return markdownDeps;
+  const [{ marked }, DOMPurifyMod, hljsMod] = await Promise.all([
+    import("marked"),
+    import("dompurify"),
+    import("highlight.js"),
+  ]);
+  await import("highlight.js/styles/github.css");
+  markdownDeps = { marked, DOMPurify: DOMPurifyMod.default, hljs: hljsMod.default };
+  return markdownDeps;
+}
 
 export default defineContentScript({
   matches: ["http://*/*", "https://*/*"],
@@ -39,7 +54,6 @@ export default defineContentScript({
     let conversationHistory: ChatMessage[] = [];
     let streamPort: chrome.runtime.Port | null = null;
     let chunkBuffer = "";
-    let rafPending = false;
 
     let turns: Turn[] = [];
     let currentTurn: Turn | null = null;
@@ -47,6 +61,9 @@ export default defineContentScript({
     const expandedTurnIds = new Set<string>();
     let clearConfirmTimer: ReturnType<typeof setTimeout> | null = null;
     let clearConfirmActive = false;
+
+    let flushTimer: ReturnType<typeof setTimeout> | null = null;
+    const FLUSH_INTERVAL = 150;
 
     let turnIdCounter = 0;
     function nextTurnId(): string {
@@ -64,6 +81,12 @@ export default defineContentScript({
     // ─── Markdown rendering ────────────────────────────────────────────
 
     function renderMarkdown(raw: string): HTMLElement {
+      if (!markdownDeps) {
+        const el = document.createElement("div");
+        el.textContent = raw;
+        return el;
+      }
+      const { marked, DOMPurify, hljs } = markdownDeps;
       const html = DOMPurify.sanitize(marked.parse(raw, { gfm: true, breaks: true }) as string, {
         USE_PROFILES: { html: true },
       });
@@ -101,6 +124,8 @@ export default defineContentScript({
 
     function ensureUi(): void {
       if (bubbleEl && panelEl) return;
+
+      void loadMarkdownDeps();
 
       bubbleEl = document.createElement("button");
       bubbleEl.type = "button";
@@ -341,7 +366,6 @@ export default defineContentScript({
       setBusy(false);
       hideBubble();
 
-      // Show panel invisibly to measure its size, then position it
       panelEl.hidden = false;
       panelEl.style.visibility = "hidden";
 
@@ -390,6 +414,11 @@ export default defineContentScript({
     // ─── Streaming ─────────────────────────────────────────────────────
 
     function abortStream(): void {
+      if (flushTimer !== null) {
+        clearTimeout(flushTimer);
+        flushTimer = null;
+      }
+      chunkBuffer = "";
       if (streamPort) {
         try {
           streamPort.disconnect();
@@ -401,21 +430,24 @@ export default defineContentScript({
       setBusy(false);
     }
 
+    function flushChunkBuffer(): void {
+      if (!answerEl) return;
+      const current = answerEl.dataset.rawMd ?? "";
+      const updated = current + chunkBuffer;
+      chunkBuffer = "";
+      answerEl.dataset.rawMd = updated;
+      const rendered = renderMarkdown(updated);
+      answerEl.innerHTML = "";
+      answerEl.appendChild(rendered);
+      answerEl.scrollTop = answerEl.scrollHeight;
+    }
+
     function scheduleFlush(): void {
-      if (rafPending) return;
-      rafPending = true;
-      requestAnimationFrame(() => {
-        rafPending = false;
-        if (!answerEl) return;
-        const current = answerEl.dataset.rawMd ?? "";
-        const updated = current + chunkBuffer;
-        chunkBuffer = "";
-        answerEl.dataset.rawMd = updated;
-        const rendered = renderMarkdown(updated);
-        answerEl.innerHTML = "";
-        answerEl.appendChild(rendered);
-        answerEl.scrollTop = answerEl.scrollHeight;
-      });
+      if (flushTimer !== null) return;
+      flushTimer = setTimeout(() => {
+        flushTimer = null;
+        flushChunkBuffer();
+      }, FLUSH_INTERVAL);
     }
 
     function onStreamChunk(text: string): void {
@@ -424,6 +456,11 @@ export default defineContentScript({
     }
 
     function onStreamDone(rawAnswer: string): void {
+      if (flushTimer !== null) {
+        clearTimeout(flushTimer);
+        flushTimer = null;
+      }
+      chunkBuffer = "";
       if (rawAnswer.trim()) {
         conversationHistory.push({ role: "assistant", content: rawAnswer });
         if (currentTurn) currentTurn.answer = rawAnswer;
@@ -443,6 +480,11 @@ export default defineContentScript({
     }
 
     function onStreamError(errorMsg: string): void {
+      if (flushTimer !== null) {
+        clearTimeout(flushTimer);
+        flushTimer = null;
+      }
+      chunkBuffer = "";
       if (answerEl) {
         answerEl.textContent = `Error: ${errorMsg}`;
         delete answerEl.dataset.rawMd;
@@ -513,7 +555,7 @@ export default defineContentScript({
         type: "STREAM_START",
         question,
         selection: lastSelectedText,
-        messages: conversationHistory.slice(0, -1),
+        messages: conversationHistory.slice(0, -1).slice(-MAX_HISTORY_MESSAGES),
       });
     }
 

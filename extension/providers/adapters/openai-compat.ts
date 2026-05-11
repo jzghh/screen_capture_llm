@@ -1,4 +1,5 @@
 import type { Adapter, AdapterParams, ProviderEntry } from "@/utils/types";
+import { MAX_RESPONSE_TOKENS } from "@/utils/types";
 
 function trimSlash(s: string): string {
   return s.endsWith("/") ? s.slice(0, -1) : s;
@@ -55,6 +56,7 @@ async function complete(params: AdapterParams): Promise<string> {
     headers: buildHeaders(apiKey, provider),
     body: JSON.stringify({
       model,
+      max_tokens: MAX_RESPONSE_TOKENS,
       messages: [{ role: "system", content: system }, ...messages],
     }),
     signal,
@@ -84,6 +86,7 @@ async function* stream(params: AdapterParams): AsyncGenerator<string> {
     headers: buildHeaders(apiKey, provider),
     body: JSON.stringify({
       model,
+      max_tokens: MAX_RESPONSE_TOKENS,
       stream: true,
       messages: [{ role: "system", content: system }, ...messages],
     }),
