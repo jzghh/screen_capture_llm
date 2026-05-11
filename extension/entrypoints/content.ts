@@ -1,24 +1,11 @@
 import "@/assets/content.css";
 import { STORAGE_KEYS, PORT_NAME, MAX_SELECTION_CHARS, MAX_HISTORY_MESSAGES } from "@/utils/types";
 import type { ChatMessage, StreamPortMessage } from "@/utils/types";
-
-let markdownDeps: {
-  marked: typeof import("marked").marked;
-  DOMPurify: typeof import("dompurify").default;
-  hljs: typeof import("highlight.js").default;
-} | null = null;
-
-async function loadMarkdownDeps() {
-  if (markdownDeps) return markdownDeps;
-  const [{ marked }, DOMPurifyMod, hljsMod] = await Promise.all([
-    import("marked"),
-    import("dompurify"),
-    import("highlight.js"),
-  ]);
-  await import("highlight.js/styles/github.css");
-  markdownDeps = { marked, DOMPurify: DOMPurifyMod.default, hljs: hljsMod.default };
-  return markdownDeps;
-}
+import type { Turn } from "@/lib/types";
+import { loadMarkdownDeps, renderMarkdown } from "@/lib/markdown";
+import { computePanelPosition } from "@/lib/positioning";
+import { createCopyButton } from "@/lib/copy";
+import { estimateTokens } from "@/lib/tokens";
 
 const QUICK_PRESETS = ["Summarize", "Translate to English", "Explain simply", "Fix grammar"];
 
@@ -28,15 +15,6 @@ export default defineContentScript({
   cssInjectionMode: "manifest",
 
   main() {
-    // ─── Types ─────────────────────────────────────────────────────────
-
-    interface Turn {
-      id: string;
-      question: string;
-      answer: string;
-      selection: string;
-    }
-
     // ─── State ─────────────────────────────────────────────────────────
 
     let bubbleEl: HTMLButtonElement | null = null;
@@ -84,75 +62,12 @@ export default defineContentScript({
       return featureEnabled;
     }
 
-    // ─── Markdown rendering ────────────────────────────────────────────
-
-    function renderMarkdown(raw: string): HTMLElement {
-      if (!markdownDeps) {
-        const el = document.createElement("div");
-        el.textContent = raw;
-        return el;
-      }
-      const { marked, DOMPurify, hljs } = markdownDeps;
-      const html = DOMPurify.sanitize(marked.parse(raw, { gfm: true, breaks: true }) as string, {
-        USE_PROFILES: { html: true },
-      });
-      const wrapper = document.createElement("div");
-      wrapper.innerHTML = html;
-
-      wrapper.querySelectorAll<HTMLElement>("pre code").forEach((block) => {
-        hljs.highlightElement(block);
-      });
-      return wrapper;
-    }
-
     // ─── Copy helper ────────────────────────────────────────────────────
-
-    function createCopyButton(getRawText: () => string): HTMLButtonElement {
-      const btn = document.createElement("button");
-      btn.type = "button";
-      btn.className = "ask-llm-copy-btn";
-      btn.textContent = "Copy";
-      btn.addEventListener("click", (e) => {
-        e.stopPropagation();
-        const text = getRawText();
-        if (!text) return;
-        navigator.clipboard.writeText(text).then(() => {
-          btn.textContent = "Copied!";
-          btn.classList.add("ask-llm-copy-btn--copied");
-          setTimeout(() => {
-            btn.textContent = "Copy";
-            btn.classList.remove("ask-llm-copy-btn--copied");
-          }, 1500);
-        });
-      });
-      return btn;
-    }
 
     function updateAnswerCopyButton(): void {
       if (!answerCopyBtn || !answerWrapEl) return;
       const hasAnswer = !!(currentTurn?.answer);
       answerCopyBtn.hidden = !hasAnswer;
-    }
-
-    // ─── Positioning ───────────────────────────────────────────────────
-
-    function computePanelPosition(
-      selRect: DOMRect,
-      panelSize: { width: number; height: number },
-      viewport = { w: window.innerWidth, h: window.innerHeight },
-    ): { top: number; left: number } {
-      const M = 12;
-      const { w: vw, h: vh } = viewport;
-      const { width: pw, height: ph } = panelSize;
-
-      let top = selRect.bottom + M;
-      if (top + ph > vh - M) {
-        const above = selRect.top - ph - M;
-        top = above >= M ? above : Math.max(M, (vh - ph) / 2);
-      }
-
-      const left = Math.min(Math.max(M, selRect.left), vw - pw - M);
-      return { top, left };
     }
 
     // ─── UI building ───────────────────────────────────────────────────
@@ -539,6 +454,11 @@ export default defineContentScript({
           const rendered = renderMarkdown(rawAnswer);
           answerEl.innerHTML = "";
           answerEl.appendChild(rendered);
+          const tokens = estimateTokens(rawAnswer);
+          const info = document.createElement("div");
+          info.className = "ask-llm-token-info";
+          info.textContent = `~${tokens} tokens (est.)`;
+          answerEl.appendChild(info);
         } else {
           answerEl.textContent = "";
         }

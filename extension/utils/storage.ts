@@ -1,8 +1,5 @@
 import { STORAGE_KEYS, type ProviderParams } from "./types";
-
-function isPlainObject(v: unknown): v is Record<string, unknown> {
-  return v !== null && typeof v === "object" && !Array.isArray(v);
-}
+import { isPlainObject } from "./helpers";
 
 export async function loadProviderParams(): Promise<ProviderParams> {
   const data = await chrome.storage.local.get([

@@ -1,22 +1,6 @@
 import type { Adapter, AdapterParams, ProviderEntry } from "@/utils/types";
 import { MAX_RESPONSE_TOKENS } from "@/utils/types";
-
-function trimSlash(s: string): string {
-  return s.endsWith("/") ? s.slice(0, -1) : s;
-}
-
-function extractError(data: unknown): string {
-  if (data && typeof data === "object") {
-    const obj = data as Record<string, unknown>;
-    const err = obj.error;
-    if (typeof err === "string") return err;
-    if (err && typeof err === "object" && "message" in err) {
-      const m = (err as Record<string, unknown>).message;
-      if (typeof m === "string") return m;
-    }
-  }
-  return "";
-}
+import { trimSlash, extractError } from "./helpers";
 
 function extractText(data: unknown): string | null {
   if (!data || typeof data !== "object") return null;

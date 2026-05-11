@@ -538,6 +538,16 @@
   border-color: #9ca3af;
 }
 
+/* ── Token info ──────────────────────────────────────────────────── */
+
+.ask-llm-token-info {
+  margin-top: 0.35rem;
+  text-align: right;
+  font-size: 0.7rem;
+  color: #9ca3af;
+  line-height: 1.3;
+}
+
 /* ── Dark mode ───────────────────────────────────────────────────── */
 
 @media (prefers-color-scheme: dark) {
@@ -717,5 +727,9 @@
   .ask-llm-retry-btn:hover {
     background: #4b5563;
     border-color: #6b7280;
+  }
+
+  .ask-llm-token-info {
+    color: #6b7280;
   }
 }

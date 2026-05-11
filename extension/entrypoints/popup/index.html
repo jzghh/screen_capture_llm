@@ -46,6 +46,7 @@
         <label class="popup__field-label" for="api-key">API key</label>
         <input id="api-key" class="popup__input" type="password" autocomplete="off" placeholder="" />
         <p id="api-hint" class="popup__sub-hint" hidden></p>
+        <p class="popup__security-note">Keys are stored locally in your browser. For shared computers, use Backend mode.</p>
 
         <label class="popup__field-label" for="model-id">Model ID</label>
         <input id="model-id" class="popup__input" type="text" spellcheck="false" placeholder="" />
@@ -66,6 +67,11 @@
         Ping service worker
       </button>
       <p id="ping-result" class="popup__hint" hidden></p>
+
+      <button id="btn-clear-keys" type="button" class="popup__button popup__button--danger">
+        Clear all API keys
+      </button>
+      <p id="clear-keys-status" class="popup__hint" hidden></p>
 
       <p id="self-hosted-warning" class="popup__warning">
         Self-hosted mode: keys live in chrome.storage.local on this device only.

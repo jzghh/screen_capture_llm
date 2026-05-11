@@ -2,6 +2,7 @@ import { listProviders, getProvider, streamProvider } from "@/providers";
 import { streamViaBackend } from "@/providers/adapters/backend";
 import { buildSystemPrompt, buildUserContent } from "@/utils/prompts";
 import { loadProviderParams } from "@/utils/storage";
+import { isPlainObject } from "@/utils/helpers";
 import { STORAGE_KEYS, PORT_NAME } from "@/utils/types";
 import type { ConnectionMode, StreamStartMessage, StreamPortMessage } from "@/utils/types";
 
@@ -33,10 +34,6 @@ export default defineBackground(() => {
       chrome.tabs.sendMessage(tabId, { type: "ASK_LLM_OPEN_PANEL" });
     });
   });
-
-  function isPlainObject(v: unknown): v is Record<string, unknown> {
-    return v !== null && typeof v === "object" && !Array.isArray(v);
-  }
 
   async function runMigrations(): Promise<void> {
     const data = await chrome.storage.local.get([

@@ -1,5 +1,6 @@
 import { STORAGE_KEYS } from "@/utils/types";
 import type { ConnectionMode, ProviderEntry } from "@/utils/types";
+import { isPlainObject } from "@/utils/helpers";
 
 interface Draft {
   apiKey: string;
@@ -26,15 +27,13 @@ const saveStatus = $<HTMLParagraphElement>("#save-status");
 const toggleEl = $<HTMLInputElement>("#toggle-enabled");
 const pingBtn = $<HTMLButtonElement>("#btn-ping");
 const pingResult = $<HTMLParagraphElement>("#ping-result");
+const clearKeysBtn = $<HTMLButtonElement>("#btn-clear-keys");
+const clearKeysStatus = $<HTMLParagraphElement>("#clear-keys-status");
 
 let providers: ProviderEntry[] = [];
 const drafts: Record<string, Draft> = Object.create(null);
 let currentProviderId = "";
 let currentMode: ConnectionMode = "self-hosted";
-
-function isPlainObject(v: unknown): v is Record<string, unknown> {
-  return v !== null && typeof v === "object" && !Array.isArray(v);
-}
 
 interface RegistryResponse {
   ok: boolean;
@@ -245,6 +244,19 @@ pingBtn?.addEventListener("click", async () => {
       pingResult.style.color = "#b91c1c";
       pingResult.textContent = e instanceof Error ? e.message : String(e);
     }
+  }
+});
+
+clearKeysBtn?.addEventListener("click", async () => {
+  await chrome.storage.local.set({ [STORAGE_KEYS.keys]: {} });
+  for (const id of Object.keys(drafts)) {
+    drafts[id].apiKey = "";
+  }
+  if (apiKeyEl) apiKeyEl.value = "";
+  if (clearKeysStatus) {
+    clearKeysStatus.hidden = false;
+    clearKeysStatus.style.color = "#059669";
+    clearKeysStatus.textContent = "All API keys cleared.";
   }
 });
 

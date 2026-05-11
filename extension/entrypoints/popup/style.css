@@ -133,3 +133,19 @@ body {
   border-radius: 6px;
   padding: 8px;
 }
+
+.popup__security-note {
+  margin: 4px 0 0;
+  font-size: 10px;
+  line-height: 1.4;
+  color: #9ca3af;
+}
+
+.popup__button--danger {
+  margin-top: 8px;
+  background: #dc2626;
+}
+
+.popup__button--danger:hover {
+  background: #b91c1c;
+}

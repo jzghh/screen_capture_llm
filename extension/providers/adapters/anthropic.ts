@@ -1,22 +1,8 @@
 import type { Adapter, AdapterParams } from "@/utils/types";
 import { MAX_RESPONSE_TOKENS } from "@/utils/types";
+import { trimSlash, extractError } from "./helpers";
 
 const ANTHROPIC_VERSION = "2023-06-01";
-
-function trimSlash(s: string): string {
-  return s.endsWith("/") ? s.slice(0, -1) : s;
-}
-
-function extractError(data: unknown): string {
-  if (data && typeof data === "object" && "error" in data) {
-    const errObj = (data as Record<string, unknown>).error;
-    if (errObj && typeof errObj === "object" && "message" in errObj) {
-      const m = (errObj as Record<string, unknown>).message;
-      if (typeof m === "string") return m;
-    }
-  }
-  return "";
-}
 
 function buildHeaders(apiKey: string): Record<string, string> {
   return {
